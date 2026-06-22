@@ -1,12 +1,15 @@
 [project]
-name = "process-template"
+name = "oes-client"
 version = "0.3.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "automation-server-client",
+    "authlib>=1.6.1",
+    "httpx>=0.28.1",
+    "playwright>=1.54.0",
+    "pytest>=8.4.1",
+    "ruff>=0.15.11" 
 ]
 
 [tool.uv.sources]
-automation-server-client = { git = "https://github.com/odense-rpa/automation-server-client.git", tag = "v0.3.0" }
