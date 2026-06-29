@@ -8,7 +8,6 @@ class OESSelectors:
     # ----------------------------------- iframe & nested content --------------------------------
 
     # nogle af dem er måske redundante
-    # eks kan måske blot bruge iframe_bruger uden iframeset
     # dette vender jeg tilbage til
 
     # iframe
@@ -20,15 +19,80 @@ class OESSelectors:
     # content / specifik frame
     IFRAME_BRUGER = "#cursor > frameset > frameset > frame"
 
-    # form vi gerne vil tilgå
-    #FORM = "body > form"
+    # ------------------------------ Bruger Søgning // User Search --------------------------------
 
-
-
-    
-    OES_LOGO = "body > app-root > div > mat-toolbar > div:nth-child(3) > div > div:nth-child(5) > img"
-    
+    # user id
     BRUGER_ID = "#idBRUGERID"
 
+    # user details headline for assertion
     BRUGER_DETALJER_OVERSKRIFT = "body > form > table:nth-child(1) > tbody > tr:nth-child(1) > td > table > tbody > tr > td"
+
+    # ----------------------------------- Sletning // Deletion -------------------------------------
+
+    # access group table
+    ADGANGSGRUPPE_TABLE = "#Fane_Brg > table > tbody > tr > td:nth-child(3) > table > tbody > tr:nth-child(3) > td:nth-child(2) > table"
+
+    # access group table - delete
+    ADGANGSGRUPPE_TABLE_SLET = "#Fane_Brg > table > tbody > tr > td:nth-child(3) > table > tbody > tr:nth-child(3) > td:nth-child(2) > table > tbody > tr:nth-child(2) > td:nth-child(1) > a > img"
+    
+
+    # bogførings kasser // accounting fields
+    KASSE_ET = "#idKasse1"
+    KASSE_TO = "#idKasse2"
+    KASSE_TRE = "#idKasse3"
+    KASSE_FIRE = "#idKasse4"
+    KASSE_FEM = "#idKasse5"
+    KASSE_SEKS = "#idKasse6"
+
+    # user blocked
+    BRUGER_SPAERRET = "#idSpaerr"
+
+    # payment approval  
+    BETALING_GODKENDT = "#idBetgodk"
+
+    # department table with department numbers
+    AFDELINGSNUMMER_TABLE = "#Fane_Afd > table > tbody > tr > td > table"
+
+    # department - delete line
+    AFDELINGSNUMMER_TABLE_SLET = "#Fane_Afd > table > tbody > tr > td > table > tbody > tr > td:nth-child(1) > table > tbody > tr > td:nth-child(1) > a > img"
+
+    # institution table
+    INSTUTITION_TABLE = "#Fane_Inst > table > tbody > tr > td > table > tbody > tr.line2 > td:nth-child(1)"
+
+    # institution - delete line
+    INSTUTITION_TABLE_SLET = "#Fane_Inst > table > tbody > tr > td > table > tbody > tr > td:nth-child(1) > table > tbody > tr > td:nth-child(1) > a > img"
+    
+    # --------------------------------- Navigering // Navigation -----------------------------------
+
+    # oes logo --> main page
+    OES_LOGO = "body > app-root > div > mat-toolbar > div:nth-child(3) > div > div:nth-child(5) > img"
+
+    # departement 
+    AFDELING_FANE = "#Fane_Afd_Inaktiv > a"
+
+    # institution
+    INSTITUTION_FANE = "#Fane_Inst_Inaktiv > a"
+
+
+class OESCommands:
+
+    # ---------------------------------- Handlinger // Commands ------------------------------------
+
+    # the system handles changes and deletion by commands instead of ui buttons
+
+    # edit user
+    REDIGER_BRUGER = "alt" + "3"
+    
+    # show user
+    VIS_BRUGER = "enter"
+    # can also be "alt" + "v" instead of "enter"
+
+    # clear / start over
+    RYD_START_FORFRA = "alt" + "r"
+
+    # save user
+    GEM_BRUGER = "alt" + "2"
+
+
+
     

@@ -12,8 +12,7 @@ def oes_client():
         password=os.getenv("PASSWORD", ""),
     )
 
+
 @pytest.fixture
 def test_bruger_id():
     return os.getenv("TEST_BRUGER_ID")
-    
-

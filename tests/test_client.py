@@ -5,6 +5,7 @@ def test_login(oes_client):
     oes_client._login()
     breakpoint = ""
 
+
 def test_failed_login(oes_client):
     fake_test_mail = "hovhovhov@odense.dk"
     try:
@@ -20,7 +21,5 @@ def test_fremsoeg_bruger(oes_client, test_bruger_id):
         pytest.fail(f"fremsoeg_bruger raised unexpected exception: {e}")
 
 
-
-# TODO: test fremsøg_bruger
-# TODO: test close
-# TODO: test slet_bruger
+def test_slet_bruger(oes_client, test_bruger_id):
+    pass
