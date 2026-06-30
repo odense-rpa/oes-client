@@ -102,37 +102,36 @@ class OESClient:
 
         # håndtering af iframe med flere frames vha for loop  // handling of iframe with several framesets with a "for loop"
         frame = None
-        for _ in range(50):  # retry loop
+        for _ in range(20):  # retry loop
             frame = self._page.frame(name="midt")
             if frame:
                 print(frame)
                 self._frame = frame  # gem frame til de næste metoder
                 break
-            self._page.wait_for_timeout(100)
+            self._page.wait_for_timeout(2000)
         if not frame:
             raise Exception("Frame 'midt' not found")
 
         # søg på bruger // search for user
         try:
             bruger_input = frame.locator(oss.BRUGER_ID)
-            bruger_input.wait_for(state="visible", timeout=10000)
+            bruger_input.wait_for(state="visible", timeout=3000)
             bruger_input.fill(bruger_id)
             bruger_input.press(osc.VIS_BRUGER)
+            frame.locator(oss.BRUGER_DETALJER_OVERSKRIFT).wait_for(timeout=3000)
         except Exception as e:
             raise Exception(
                 f"[fremsoeg_bruger] søgning fejlede"
             ) from e
 
-        # valider resultat (CHATTEN)
-        overskrift = frame.locator(oss.BRUGER_DETALJER_OVERSKRIFT)
+        # valider rigtige brugerdetaljer // validate correct userdetails
+        #bruger_detaljer_id = self._frame.locator(oss.BRUGER_DETALJER_ID).input_value()
+        #if bruger_detaljer_id != bruger_id:
+        #    raise AssertionError(
+        #        f"[fremsoeg_bruger] Forventede bruger '{bruger_id}', "
+        #        f"men fandt '{bruger_detaljer_id}'"
+        #    )
 
-        try:
-            overskrift.wait_for(timeout=5000)
-        except Exception as e:
-            raise AssertionError(
-                f"[fremsoeg_bruger] Bruger '{bruger_id}' blev ikke fundet"
-            ) from e
-        # (CHATTEN)
 
     def _slet_i_bruger_fane(self):
         # håndter sletning i bogføringskasser // handle deletion in accounting fields
@@ -166,39 +165,50 @@ class OESClient:
         if betaling_godkendt_box.is_checked():
             betaling_godkendt_box.click()
 
-        # slet linje i så længe slet knappen findes // delete line as long as delete btn exists
         self._frame.locator(oss.ADGANGSGRUPPE_TABLE)
-        adgangsgruppe_slet_raekke = self._page.locator(oss.ADGANGSGRUPPE_TABLE_SLET)
+        adgangsgruppe_slet_raekke = self._frame.locator(oss.ADGANGSGRUPPE_TABLE_SLET)
         while adgangsgruppe_slet_raekke.count() > 0:
             adgangsgruppe_slet_raekke.click()
-            self._page.wait_for_timeout(200)
+            self._page.wait_for_timeout(2000)
 
     def _slet_i_afdeling_fane(self):
         self._frame.click(oss.AFDELING_FANE)
-        self._frame.wait_for_selector(oss.AFDELINGSNUMMER_TABLE, timeout=3000)
+        self._frame.wait_for_selector(oss.AFDELINGSNUMMER_TABLE, timeout=2000)
 
-        # slet linje i så længe slet knappen findes // delete line as long as delete btn exists
+        # slet linje så længe slet knappen findes // delete line as long as delete btn exists
         afdeling_slet_raekke = self._frame.locator(oss.AFDELINGSNUMMER_TABLE_SLET)
         while afdeling_slet_raekke.count() > 0:
             afdeling_slet_raekke.click()
-            self._page.wait_for_timeout(200)
+            self._page.wait_for_timeout(2000)
+            afdeling_fra = self._frame.locator(oss.AFDELINGSNUMMER_TABLE_FRA).input_value()
+            afdeling_til = self._frame.locator(oss.AFDELINGSNUMMER_TABLE_TIL).input_value()
+            if afdeling_fra == "" + afdeling_til == "":
+                break
 
     def _slet_i_institution_fane(self):
         self._frame.click(oss.INSTITUTION_FANE)
-        self._frame.wait_for_selector(oss.INSTUTITION_TABLE, timeout=3000)
+        self._frame.wait_for_selector(oss.INSTITUTION_TABLE, timeout=2000)
 
         # slet linje så længe slet knappen findes // delete line as long as delete btn exists
-        institution_slet_raekke = self._frame.locator(oss.INSTUTITION_TABLE_SLET)
+        institution_slet_raekke = self._frame.locator(oss.INSTITUTION_TABLE_SLET)
         while institution_slet_raekke.count() > 0:
             institution_slet_raekke.click()
-            self._page.wait_for_timeout(200)
+            self._page.wait_for_timeout(2000)
+            institution_fra = self._frame.locator(oss.INSTITUTION_TABLE_FRA).input_value()
+            institution_til = self._frame.locator(oss.INSTITUTION_TABLE_TIL).input_value()
+            if institution_fra == "" + institution_til == "":
+                break
+
 
     def slet_bruger(self):
-        self._page.press(osc.REDIGER_BRUGER)
+        self._page.keyboard.press('Alt+3')
+        self._page.wait_for_timeout(2000)
 
         self._slet_i_bruger_fane()
         self._slet_i_afdeling_fane()
         self._slet_i_institution_fane()
 
-        self._page.press(oss.OES_LOGO)
-        self._page.wait_for_timeout(5000)
+        # TODO: self._page.press(osc.GEM_BRUGER)
+
+        self._page.click(oss.OES_LOGO)
+        self._page.wait_for_timeout(3000)
