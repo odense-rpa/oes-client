@@ -5,7 +5,9 @@ from playwright.sync_api import (
     sync_playwright,
     Playwright,
     Page,
+    Frame,
     Error as PlaywrightError,
+    TimeoutError,
 )
 import logging
 
@@ -23,6 +25,7 @@ class OESClient:
         self._browser = None
         self._context = None
         self._page: Page | None = None
+        self._frame: Frame | None = None
 
         self._login()
 
@@ -56,11 +59,11 @@ class OESClient:
         self._page.wait_for_timeout(5000)
 
         try:
-            self._page.wait_for_selector(ls.KOMMUNE_EMAIL, timeout=3000)
+            self._page.wait_for_selector(ls.KOMMUNE_EMAIL, timeout=2000)
             self._page.fill(ls.KOMMUNE_EMAIL, self.username)
             self._page.click(ls.NAESTE_BTN)
 
-            self._page.wait_for_selector(ls.PASSWORD_FIELD, timeout=3000)
+            self._page.wait_for_selector(ls.PASSWORD_FIELD, timeout=2000)
             self._page.fill(ls.PASSWORD_FIELD, self.password)
             self._page.click(ls.LOGIN_BTN)
 
@@ -94,7 +97,7 @@ class OESClient:
         if self._page is None:
             return None
 
-        bruger_id = (bruger_id or self.bruger_id or "").strip()
+        bruger_id = (bruger_id or self.bruger_id or "").upper().strip()
         if not bruger_id:
             raise ValueError("A valid user id must be provided to fremsoeg_bruger")
 
@@ -125,12 +128,12 @@ class OESClient:
             ) from e
 
         # valider rigtige brugerdetaljer // validate correct userdetails
-        #bruger_detaljer_id = self._frame.locator(oss.BRUGER_DETALJER_ID).input_value()
-        #if bruger_detaljer_id != bruger_id:
-        #    raise AssertionError(
-        #        f"[fremsoeg_bruger] Forventede bruger '{bruger_id}', "
-        #        f"men fandt '{bruger_detaljer_id}'"
-        #    )
+        bruger_detaljer_id = self._frame.locator(oss.BRUGER_DETALJER_ID).text_content()
+        if bruger_detaljer_id != bruger_id:
+           raise AssertionError(
+               f"[fremsoeg_bruger] Forventede bruger '{bruger_id}', "
+               f"men fandt '{bruger_detaljer_id}'"
+           )
 
 
     def _slet_i_bruger_fane(self):
@@ -201,14 +204,32 @@ class OESClient:
 
 
     def slet_bruger(self):
-        self._page.keyboard.press('Alt+3')
-        self._page.wait_for_timeout(2000)
+        for attempt in range(3):
+            try:
+                with self._page.expect_response(lambda r: "tom.html" in r.url):
+                    self._page.bring_to_front()
+                    self._frame.locator("body").click()
+                    self._page.keyboard.press(osc.REDIGER_BRUGER)
+                break
+            except TimeoutError:
+                if attempt == 2:
+                    raise
+        self._frame.wait_for_selector(oss.KASSE_ET, state="visible")
 
         self._slet_i_bruger_fane()
         self._slet_i_afdeling_fane()
         self._slet_i_institution_fane()
 
-        # TODO: self._page.press(osc.GEM_BRUGER)
+        self._page.keyboard.press(osc.GEM_BRUGER)
+        self._page.wait_for_timeout(2000)
+
+        assert_bruger_spaerret = self._frame.locator(oss.BRUGER_SPAERRET_EFTER_REDIGERING).text_content()
+        if assert_bruger_spaerret != "J   (Bruger er spærret administativt)" and assert_bruger_spaerret != "J":
+           raise AssertionError(
+                f"[slet_bruger] Forventede 'J' i 'bruger spærret', "
+                f"men fandt '{assert_bruger_spaerret}'"
+                f"fejl i [slet_bruger]"
+           )
 
         self._page.click(oss.OES_LOGO)
         self._page.wait_for_timeout(3000)

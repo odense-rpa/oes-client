@@ -50,6 +50,9 @@ class OESSelectors:
     # user blocked
     BRUGER_SPAERRET = "#idSpaerr"
 
+    # user blocked after edit
+    BRUGER_SPAERRET_EFTER_REDIGERING = "#Fane_Brg > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(25) > td.infocell"
+
     # payment approval  
     BETALING_GODKENDT = "#idBetgodk"
 
@@ -96,14 +99,14 @@ class OESCommands:
     # the system handles changes and deletion by commands instead of ui buttons
 
     # edit user
-    REDIGER_BRUGER = "'Alt+3'"
+    REDIGER_BRUGER = "Alt+3"
     
     # show user
     VIS_BRUGER = "Enter"
     # can also be "alt+v" instead of "enter"
 
     # clear / start over
-    RYD_START_FORFRA = "Alt" + "r"
+    RYD_START_FORFRA = "Alt+R"
 
     # save user
     GEM_BRUGER = "Alt+2"
