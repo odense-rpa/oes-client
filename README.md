@@ -1,21 +1,39 @@
-## How to use this template
+# oes-client
 
-The repository has been tagged as a template repository. This means you can create a new repository based on this code using the [GitHub instructions](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template)
+Playwright-baseret Python-klient til OES (økonomi- og regnskabssystem) — giver automatiseret adgang til brugeradministration via OES-webgrænsefladen.
 
+> Denne klient er ikke officielt støttet eller godkendt af leverandøren bag OES. Brug på eget ansvar.
 
-### Alternative method: checkout the repository and remove git bindings
-Replace `<new-folder-name>` with your desired folder name:
-```sh
-git clone https://github.com/odense-rpa/process-template.git <new-folder-name>
+## Nuværende funktionalitet
 
-cd <new-folder-name>
+- Autentificering via Microsoft/Azure AD SSO med kommunalt brugernavn og adgangskode
+- Søg efter bruger med `fremsoeg_bruger(bruger_id)`
+- Bloker bruger og fjern al adgang med `slet_bruger()` — nulstiller kassefelter, sætter bruger-blokeret-flag, fjerner adgangsgrupper, afdelingstalstildelinger og institutionsnummertildelinger
+- Understøtter brug som kontekst-manager (`with`-sætning)
 
-rm -rf .git
-git init
-git add .
-git commit -m "Initial commit from process-template"
+## Installation
 
-git remote add origin <new-repo-url>
-git push -u origin main
+```bash
+uv add git+https://github.com/odense-rpa/oes-client
 ```
 
+## Forudsætninger
+
+- Python ≥ 3.13
+- Adgang til OES-webgrænsefladen
+- Gyldige Microsoft SSO-legitimationsoplysninger til kommunens brugerkonto
+
+## Brug
+
+```python
+from oes_client import OESClient
+
+with OESClient() as client:
+    client.authenticate(email="bruger@odense.dk", password="hemmeligt")
+    client.fremsoeg_bruger("12345")
+    client.slet_bruger()
+```
+
+## Licens
+
+MIT
