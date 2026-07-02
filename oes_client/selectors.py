@@ -1,24 +1,18 @@
 class LoginSelectors:
+    # municipality email
     KOMMUNE_EMAIL = "#i0116"
+
+    # next button after email
     NAESTE_BTN = "#idSIButton9"
+
+    #
     PASSWORD_FIELD = "#i0118"
+
+    # login button after password
     LOGIN_BTN = "#idSIButton9"
 
+
 class OESSelectors:
-    # ----------------------------------- iframe & nested content --------------------------------
-
-    # nogle af dem er måske redundante
-    # dette vender jeg tilbage til
-
-    # iframe
-    IFRAME = "#iFrameId"
-
-    # # frameset / content
-    IFRAMESET = "#cursor > frameset"
-    
-    # content / specifik frame
-    IFRAME_BRUGER = "#cursor > frameset > frameset > frame"
-
     # ------------------------------ Bruger Søgning // User Search --------------------------------
 
     # user id
@@ -27,7 +21,7 @@ class OESSelectors:
     # user details headline for assertion
     BRUGER_DETALJER_OVERSKRIFT = "body > form > table:nth-child(1) > tbody > tr:nth-child(1) > td > table > tbody > tr > td"
 
-    # user id in user details for validation
+    # user id in user details for assertion
     BRUGER_DETALJER_ID = "#Fane_Brg > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(2) > td.infocell"
 
     # ----------------------------------- Sletning // Deletion -------------------------------------
@@ -37,7 +31,6 @@ class OESSelectors:
 
     # access group table - delete
     ADGANGSGRUPPE_TABLE_SLET = "#Fane_Brg > table > tbody > tr > td:nth-child(3) > table > tbody > tr:nth-child(3) > td:nth-child(2) > table > tbody > tr:nth-child(2) > td:nth-child(1) > a > img"
-    
 
     # bogførings kasser // accounting fields
     KASSE_ET = "#idKasse1"
@@ -47,13 +40,13 @@ class OESSelectors:
     KASSE_FEM = "#idKasse5"
     KASSE_SEKS = "#idKasse6"
 
-    # user blocked
+    # user blocked input
     BRUGER_SPAERRET = "#idSpaerr"
 
-    # user blocked after edit
+    # user blocked input after edit
     BRUGER_SPAERRET_EFTER_REDIGERING = "#Fane_Brg > table > tbody > tr > td:nth-child(1) > table > tbody > tr:nth-child(25) > td.infocell"
 
-    # payment approval  
+    # payment approval
     BETALING_GODKENDT = "#idBetgodk"
 
     # department table with department numbers
@@ -79,13 +72,13 @@ class OESSelectors:
 
     # institution to
     INSTITUTION_TABLE_TIL = "#idInstnrTil_LKInstListe_0"
-    
+
     # --------------------------------- Navigering // Navigation -----------------------------------
 
     # oes logo --> main page
     OES_LOGO = "body > app-root > div > mat-toolbar > div:nth-child(3) > div > div:nth-child(5) > img"
 
-    # departement 
+    # departement
     AFDELING_FANE = "#Fane_Afd_Inaktiv > a"
 
     # institution
@@ -93,14 +86,13 @@ class OESSelectors:
 
 
 class OESCommands:
-
     # ---------------------------------- Handlinger // Commands ------------------------------------
 
-    # the system handles changes and deletion by commands instead of ui buttons
+    # the system handles changes by commands instead of ui buttons
 
     # edit user
     REDIGER_BRUGER = "Alt+3"
-    
+
     # show user
     VIS_BRUGER = "Enter"
     # can also be "alt+v" instead of "enter"

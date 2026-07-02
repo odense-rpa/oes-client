@@ -6,7 +6,6 @@ from playwright.sync_api import (
     Playwright,
     Page,
     Frame,
-    Error as PlaywrightError,
     TimeoutError,
 )
 import logging
@@ -16,10 +15,13 @@ class OESClient:
     logging.basicConfig(level=logging.INFO)
     logger = logging.getLogger(__name__)
 
-    def __init__(self, base_url: str, username: str, password: str):
+    def __init__(
+        self, base_url: str, username: str, password: str, headless: bool = False
+    ):
         self.base_url = base_url or "about:blank"
         self.username = username or ""
         self.password = password or ""
+        self.headless = headless
 
         self._playwright: Playwright | None = None
         self._browser = None
@@ -35,7 +37,8 @@ class OESClient:
 
         self._playwright = sync_playwright().start()
         self._browser = self._playwright.chromium.launch(
-            headless=False, args=["--force-renderer-accessibility", "--new-window"]
+            headless=self.headless,
+            args=["--force-renderer-accessibility", "--new-window"],
         )
 
         self._context = self._browser.new_context(
@@ -99,7 +102,9 @@ class OESClient:
 
         bruger_id = (bruger_id or self.bruger_id or "").upper().strip()
         if not bruger_id:
-            raise ValueError("A valid user id must be provided to fremsoeg_bruger")
+            raise ValueError(
+                "Et gyldigt bruger_id skal angives for at fremsøge en bruger"
+            )
 
         self._page.wait_for_load_state("domcontentloaded")
 
@@ -123,18 +128,14 @@ class OESClient:
             bruger_input.press(osc.VIS_BRUGER)
             frame.locator(oss.BRUGER_DETALJER_OVERSKRIFT).wait_for(timeout=3000)
         except Exception as e:
-            raise Exception(
-                f"[fremsoeg_bruger] søgning fejlede"
-            ) from e
+            raise ValueError("Kunne ikke fremsøge bruger") from e
 
         # valider rigtige brugerdetaljer // validate correct userdetails
         bruger_detaljer_id = self._frame.locator(oss.BRUGER_DETALJER_ID).text_content()
         if bruger_detaljer_id != bruger_id:
-           raise AssertionError(
-               f"[fremsoeg_bruger] Forventede bruger '{bruger_id}', "
-               f"men fandt '{bruger_detaljer_id}'"
-           )
-
+            raise Exception(
+                f"Forventede bruger '{bruger_id}', men fandt '{bruger_detaljer_id}'"
+            )
 
     def _slet_i_bruger_fane(self):
         # håndter sletning i bogføringskasser // handle deletion in accounting fields
@@ -148,16 +149,11 @@ class OESClient:
         ]
 
         for kasse in kasser:
-            try:
-                felt = self._frame.locator(kasse)
+            felt = self._frame.locator(kasse)
+            value = felt.input_value()
 
-                value = felt.input_value()
-
-                if value.strip():  # tjekker at der er tekst
-                    felt.fill("")
-
-            except Exception as e:
-                raise ValueError(f"Problem med {kasse}: {e}")
+            if value.strip():  # tjekker at der er tekst
+                felt.fill("")
 
         # skriv J i 'bruger spærret' // write J in 'user blocked'
         bruger_spaerret_input = self._frame.locator(oss.BRUGER_SPAERRET)
@@ -183,8 +179,12 @@ class OESClient:
         while afdeling_slet_raekke.count() > 0:
             afdeling_slet_raekke.click()
             self._page.wait_for_timeout(2000)
-            afdeling_fra = self._frame.locator(oss.AFDELINGSNUMMER_TABLE_FRA).input_value()
-            afdeling_til = self._frame.locator(oss.AFDELINGSNUMMER_TABLE_TIL).input_value()
+            afdeling_fra = self._frame.locator(
+                oss.AFDELINGSNUMMER_TABLE_FRA
+            ).input_value()
+            afdeling_til = self._frame.locator(
+                oss.AFDELINGSNUMMER_TABLE_TIL
+            ).input_value()
             if afdeling_fra == "" + afdeling_til == "":
                 break
 
@@ -197,11 +197,14 @@ class OESClient:
         while institution_slet_raekke.count() > 0:
             institution_slet_raekke.click()
             self._page.wait_for_timeout(2000)
-            institution_fra = self._frame.locator(oss.INSTITUTION_TABLE_FRA).input_value()
-            institution_til = self._frame.locator(oss.INSTITUTION_TABLE_TIL).input_value()
+            institution_fra = self._frame.locator(
+                oss.INSTITUTION_TABLE_FRA
+            ).input_value()
+            institution_til = self._frame.locator(
+                oss.INSTITUTION_TABLE_TIL
+            ).input_value()
             if institution_fra == "" + institution_til == "":
                 break
-
 
     def slet_bruger(self):
         for attempt in range(3):
@@ -214,6 +217,7 @@ class OESClient:
             except TimeoutError:
                 if attempt == 2:
                     raise
+
         self._frame.wait_for_selector(oss.KASSE_ET, state="visible")
 
         self._slet_i_bruger_fane()
@@ -223,13 +227,18 @@ class OESClient:
         self._page.keyboard.press(osc.GEM_BRUGER)
         self._page.wait_for_timeout(2000)
 
-        assert_bruger_spaerret = self._frame.locator(oss.BRUGER_SPAERRET_EFTER_REDIGERING).text_content()
-        if assert_bruger_spaerret != "J   (Bruger er spærret administativt)" and assert_bruger_spaerret != "J":
-           raise AssertionError(
-                f"[slet_bruger] Forventede 'J' i 'bruger spærret', "
-                f"men fandt '{assert_bruger_spaerret}'"
-                f"fejl i [slet_bruger]"
-           )
+        assert_bruger_spaerret = " ".join(
+            self._frame.locator(oss.BRUGER_SPAERRET_EFTER_REDIGERING)
+            .text_content()
+            .split()
+        )
+        if (
+            assert_bruger_spaerret != "J (Bruger er spærret administativt)"
+            and assert_bruger_spaerret != "J"
+        ):
+            raise ValueError(
+                f"Forventede 'J' i 'bruger spærret', men fandt '{assert_bruger_spaerret}'"
+            )
 
         self._page.click(oss.OES_LOGO)
         self._page.wait_for_timeout(3000)
