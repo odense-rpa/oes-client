@@ -108,6 +108,9 @@ class OESClient:
 
         self._page.wait_for_load_state("domcontentloaded")
 
+        self._page.click(oss.OES_LOGO)
+        self._page.wait_for_timeout(3000)
+
         # håndtering af iframe med flere frames vha for loop  // handling of iframe with several framesets with a "for loop"
         frame = None
         for _ in range(20):  # retry loop
@@ -138,17 +141,24 @@ class OESClient:
             )
 
     def _slet_i_bruger_fane(self):
+        # alm. felter der skal blankes:
+
         # håndter sletning i bogføringskasser // handle deletion in accounting fields
-        kasser = [
+        felter = [
             oss.KASSE_ET,
             oss.KASSE_TO,
             oss.KASSE_TRE,
             oss.KASSE_FIRE,
             oss.KASSE_FEM,
             oss.KASSE_SEKS,
+            oss.CPR_NUMMER_VIS,
+            oss.AD_USER_ID,
+            oss.AFDELING_NUMMER,
+            oss.INSTITUTION_NUMMER,
+            oss.SD_USER_ID,
         ]
 
-        for kasse in kasser:
+        for kasse in felter:
             felt = self._frame.locator(kasse)
             value = felt.input_value()
 

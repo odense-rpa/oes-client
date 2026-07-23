@@ -40,6 +40,13 @@ class OESSelectors:
     KASSE_FEM = "#idKasse5"
     KASSE_SEKS = "#idKasse6"
 
+    # fields to clear in user tab
+    CPR_NUMMER_VIS = "#idCPRNRVIS"
+    AD_USER_ID = "#idaduserid"
+    AFDELING_NUMMER = "#idAfdnr"
+    INSTITUTION_NUMMER = "#idInstnr"
+    SD_USER_ID = "#idsdUserId"
+
     # user blocked input
     BRUGER_SPAERRET = "#idSpaerr"
 
