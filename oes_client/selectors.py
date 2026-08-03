@@ -59,13 +59,13 @@ class OESSelectors:
     AFDELINGSNUMMER_TABLE = "#Fane_Afd > table > tbody > tr > td > table"
 
     # department - delete line when there is only one row
-    AFDELINGSNUMMER_TABLE_SLET = "#Fane_Afd > table > tbody > tr > td > table > tbody > tr > td:nth-child(1) > table > tbody > tr > td:nth-child(1) > a > img"
+    AFDELINGSNUMMER_TABLE_SLET = "#Fane_Afd > table > tbody > tr > td > table > tbody > tr.line1_topstreg > td:nth-child(1) > table > tbody > tr > td:nth-child(1) > a > img"
 
     # department - delete line when there are multiple rows (the delete button may get inlined and therefore has a different selector)
     AFDELINGSNUMMER_TABLE_SLET_TO = "#Fane_Afd > table > tbody > tr > td > table > tbody > tr.line1_topstreg > td:nth-child(1) > table > tbody > tr > td:nth-child(2) > a > img"
 
     # department from
-    AFDELINGSNUMMER_TABLE_FRA = "#idAfdnrFra0"
+    AFDELINGSNUMMER_TABLE_FRA = "#idAfdnrFra0"  # idAfdnrFra0
 
     # department to
     AFDELINGSNUMMER_TABLE_TIL = "#idAfdnrTil0"
@@ -74,7 +74,7 @@ class OESSelectors:
     INSTITUTION_TABLE = "#Fane_Inst > table > tbody > tr > td > table"
 
     # institution - delete line
-    INSTITUTION_TABLE_SLET = "#Fane_Inst > table > tbody > tr > td > table > tbody > tr > td:nth-child(1) > table > tbody > tr > td:nth-child(1) > a > img"
+    INSTITUTION_TABLE_SLET = "#Fane_Inst > table > tbody > tr > td > table > tbody > tr.line1_topstreg > td:nth-child(1) > table > tbody > tr > td:nth-child(1) > a > img"
 
     # institution - delete line when there are multiple rows (the delete button may get inlined and therefore has a different selector)
     INSTITUTION_TABLE_SLET_TO = "#Fane_Inst > table > tbody > tr > td > table > tbody > tr.line1_topstreg > td:nth-child(1) > table > tbody > tr > td:nth-child(2) > a > img"

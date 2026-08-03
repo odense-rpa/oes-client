@@ -211,6 +211,20 @@ class OESClient:
         self._frame.click(oss.INSTITUTION_FANE)
         self._frame.wait_for_selector(oss.INSTITUTION_TABLE, timeout=2000)
 
+        # slet linje så længe slet knappen findes // delete line as long as delete btn exists
+        # institution_slet_raekke = self._frame.locator(oss.INSTITUTION_TABLE_SLET)
+        # while institution_slet_raekke.count() > 0:
+        #     institution_slet_raekke.click()
+        #     self._page.wait_for_timeout(2000)
+        #     institution_fra = self._frame.locator(
+        #         oss.INSTITUTION_TABLE_FRA
+        #     ).input_value()
+        #     institution_til = self._frame.locator(
+        #         oss.INSTITUTION_TABLE_TIL
+        #     ).input_value()
+        #     if institution_fra == "" and institution_til == "":
+        #         break
+
         while True:
             institution_slet_raekke = self._frame.locator(
                 f"{oss.INSTITUTION_TABLE_SLET}, {oss.INSTITUTION_TABLE_SLET_TO}"
