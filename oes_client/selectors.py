@@ -76,6 +76,9 @@ class OESSelectors:
     # institution - delete line
     INSTITUTION_TABLE_SLET = "#Fane_Inst > table > tbody > tr > td > table > tbody > tr > td:nth-child(1) > table > tbody > tr > td:nth-child(1) > a > img"
 
+    # institution - delete line when there are multiple rows (the delete button may get inlined and therefore has a different selector)
+    INSTITUTION_TABLE_SLET_TO = "#Fane_Inst > table > tbody > tr > td > table > tbody > tr.line1_topstreg > td:nth-child(1) > table > tbody > tr > td:nth-child(2) > a > img"
+
     # institution from
     INSTITUTION_TABLE_FRA = "#idInstnrFra_LKInstListe_0"
 
