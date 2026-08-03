@@ -1,15 +1,15 @@
-from .selectors import LoginSelectors as ls
-from .selectors import OESSelectors as oss
-from .selectors import OESCommands as osc
-from playwright.sync_api import (
-    sync_playwright,
-    Playwright,
-    Page,
-    Frame,
-    TimeoutError,
-)
 import logging
 
+from playwright.sync_api import (
+    Frame,
+    Page,
+    Playwright,
+    TimeoutError,
+    sync_playwright,
+)
+from .selectors import LoginSelectors as ls
+from .selectors import OESCommands as osc
+from .selectors import OESSelectors as oss
 
 class OESClient:
     logging.basicConfig(level=logging.INFO)
@@ -184,23 +184,25 @@ class OESClient:
         self._frame.click(oss.AFDELING_FANE)
         self._frame.wait_for_selector(oss.AFDELINGSNUMMER_TABLE, timeout=2000)
 
-        # The delete button may be rendered in one of two table layouts.
-        # Match whichever selector exists and click the first visible delete button.
-        afdeling_slet_raekke = self._frame.locator(
-            f"{oss.AFDELINGSNUMMER_TABLE_SLET}, {oss.AFDELINGSNUMMER_TABLE_SLET_TO}"
-        )
+        # slet linje så længe slet knappen findes // delete line as long as delete btn exists
+        # Håndter sletning i afdelingsfanen med tilfælde af flere rækker // Handle deletion in the department tab with cases of multiple rows
+        while True:
+            afdeling_slet_raekke = self._frame.locator(
+                f"{oss.AFDELINGSNUMMER_TABLE_SLET}, {oss.AFDELINGSNUMMER_TABLE_SLET_TO}"
+            )
 
-        while afdeling_slet_raekke.count() > 0:
-            afdeling_slet_raekke.first.click()
-            self._page.wait_for_timeout(2000)
             afdeling_fra = self._frame.locator(
                 oss.AFDELINGSNUMMER_TABLE_FRA
             ).input_value()
+
             afdeling_til = self._frame.locator(
                 oss.AFDELINGSNUMMER_TABLE_TIL
             ).input_value()
+
             if afdeling_fra == "" and afdeling_til == "":
                 break
+
+            afdeling_slet_raekke.first.click()
 
     def _slet_i_institution_fane(self):
         self._frame.click(oss.INSTITUTION_FANE)
@@ -217,7 +219,7 @@ class OESClient:
             institution_til = self._frame.locator(
                 oss.INSTITUTION_TABLE_TIL
             ).input_value()
-            if institution_fra == "" + institution_til == "":
+            if institution_fra == "" and institution_til == "":
                 break
 
     def slet_bruger(self):
