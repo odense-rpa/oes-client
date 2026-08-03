@@ -5,7 +5,6 @@ class LoginSelectors:
     # next button after email
     NAESTE_BTN = "#idSIButton9"
 
-    #
     PASSWORD_FIELD = "#i0118"
 
     # login button after password
@@ -59,8 +58,11 @@ class OESSelectors:
     # department table with department numbers
     AFDELINGSNUMMER_TABLE = "#Fane_Afd > table > tbody > tr > td > table"
 
-    # department - delete line
+    # department - delete line when there is only one row
     AFDELINGSNUMMER_TABLE_SLET = "#Fane_Afd > table > tbody > tr > td > table > tbody > tr > td:nth-child(1) > table > tbody > tr > td:nth-child(1) > a > img"
+
+    # department - delete line when there are multiple rows (the delete button may get inlined and therefore has a different selector)
+    AFDELINGSNUMMER_TABLE_SLET_TO = "#Fane_Afd > table > tbody > tr > td > table > tbody > tr.line1_topstreg > td:nth-child(1) > table > tbody > tr > td:nth-child(2) > a > img"
 
     # department from
     AFDELINGSNUMMER_TABLE_FRA = "#idAfdnrFra0"

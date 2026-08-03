@@ -1,5 +1,5 @@
-import pytest
 import os
+import pytest
 
 from oes_client.client import OESClient
 

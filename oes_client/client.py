@@ -184,10 +184,14 @@ class OESClient:
         self._frame.click(oss.AFDELING_FANE)
         self._frame.wait_for_selector(oss.AFDELINGSNUMMER_TABLE, timeout=2000)
 
-        # slet linje så længe slet knappen findes // delete line as long as delete btn exists
-        afdeling_slet_raekke = self._frame.locator(oss.AFDELINGSNUMMER_TABLE_SLET)
+        # The delete button may be rendered in one of two table layouts.
+        # Match whichever selector exists and click the first visible delete button.
+        afdeling_slet_raekke = self._frame.locator(
+            f"{oss.AFDELINGSNUMMER_TABLE_SLET}, {oss.AFDELINGSNUMMER_TABLE_SLET_TO}"
+        )
+
         while afdeling_slet_raekke.count() > 0:
-            afdeling_slet_raekke.click()
+            afdeling_slet_raekke.first.click()
             self._page.wait_for_timeout(2000)
             afdeling_fra = self._frame.locator(
                 oss.AFDELINGSNUMMER_TABLE_FRA
@@ -195,7 +199,7 @@ class OESClient:
             afdeling_til = self._frame.locator(
                 oss.AFDELINGSNUMMER_TABLE_TIL
             ).input_value()
-            if afdeling_fra == "" + afdeling_til == "":
+            if afdeling_fra == "" and afdeling_til == "":
                 break
 
     def _slet_i_institution_fane(self):
