@@ -182,36 +182,28 @@ class OESClient:
             self._page.wait_for_timeout(2000)
 
     def _slet_i_afdeling_fane(self):
-        self._frame.click(oss.AFDELING_FANE)
-        self._frame.wait_for_selector(oss.AFDELINGSNUMMER_TABLE, timeout=2000)
+        try:
+            self._frame.click(oss.AFDELING_FANE)
+            self._frame.wait_for_selector(oss.AFDELINGSNUMMER_TABLE, timeout=2000)
 
-        # slet linje så længe slet knappen findes // delete line as long as delete btn exists
-        # Håndterer sletning med tilfælde af flere rækker // Handle deletion with cases of multiple rows
-        while True:
-            try:
+            # slet linje så længe slet knappen findes // delete line as long as delete btn exists
+            # Håndterer sletning med tilfælde af flere rækker // Handle deletion with cases of multiple rows
+            while True:
                 afdeling_slet_raekke = self._frame.locator(
                     f"{oss.AFDELINGSNUMMER_TABLE_SLET}, {oss.AFDELINGSNUMMER_TABLE_SLET_TO}"
                 )
-
                 self._page.wait_for_timeout(2000)
-
                 afdeling_fra = self._frame.locator(
                     oss.AFDELINGSNUMMER_TABLE_FRA
                 ).input_value()
-
                 afdeling_til = self._frame.locator(
                     oss.AFDELINGSNUMMER_TABLE_TIL
                 ).input_value()
-
                 if afdeling_fra == "" and afdeling_til == "":
                     break
-
                 afdeling_slet_raekke.first.click()
-            except Exception as e:
-                self.logger.error(
-                    f"Der skete en fejl ved sletning af afdelingsnummer: {e}"
-                )
-                break
+        except Exception as e:
+            self.logger.error(f"Der skete en fejl ved sletning af afdelingsnummer: {e}")
 
     def _slet_i_institution_fane(self):
         self._frame.click(oss.INSTITUTION_FANE)
