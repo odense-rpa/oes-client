@@ -182,13 +182,13 @@ class OESClient:
             self._page.wait_for_timeout(2000)
 
     def _slet_i_afdeling_fane(self):
-        try:
-            self._frame.click(oss.AFDELING_FANE)
-            self._frame.wait_for_selector(oss.AFDELINGSNUMMER_TABLE, timeout=2000)
+        self._frame.click(oss.AFDELING_FANE)
+        self._frame.wait_for_selector(oss.AFDELINGSNUMMER_TABLE, timeout=2000)
 
-            # slet linje så længe slet knappen findes // delete line as long as delete btn exists
-            # Håndterer sletning med tilfælde af flere rækker // Handle deletion with cases of multiple rows
-            while True:
+        # slet linje så længe slet knappen findes // delete line as long as delete btn exists
+        # Håndterer sletning med tilfælde af flere rækker // Handle deletion with cases of multiple rows
+        for attempt in range(5):
+            try:
                 afdeling_slet_raekke = self._frame.locator(
                     f"{oss.AFDELINGSNUMMER_TABLE_SLET}, {oss.AFDELINGSNUMMER_TABLE_SLET_TO}"
                 )
@@ -202,8 +202,8 @@ class OESClient:
                 if afdeling_fra == "" and afdeling_til == "":
                     break
                 afdeling_slet_raekke.first.click()
-        except Exception as e:
-            self.logger.error(f"Der skete en fejl ved sletning af afdelingsnummer: {e}")
+            except Exception as e:
+                raise ValueError("Kunne ikke slette afdelingsnummer") from e
 
     def _slet_i_institution_fane(self):
         self._frame.click(oss.INSTITUTION_FANE)
@@ -211,31 +211,23 @@ class OESClient:
 
         # slet linje så længe slet knappen findes // delete line as long as delete btn exists
         # Håndterer sletning med tilfælde af flere rækker // Handle deletion with cases of multiple rows
-        while True:
+        for attempt in range(5):
             try:
                 institution_slet_raekke = self._frame.locator(
                     f"{oss.INSTITUTION_TABLE_SLET}, {oss.INSTITUTION_TABLE_SLET_TO}"
                 )
-
                 self._page.wait_for_timeout(2000)
-
                 institution_fra = self._frame.locator(
                     oss.INSTITUTION_TABLE_FRA
                 ).input_value()
-
                 institution_til = self._frame.locator(
                     oss.INSTITUTION_TABLE_TIL
                 ).input_value()
-
                 if institution_fra == "" and institution_til == "":
                     break
-
                 institution_slet_raekke.first.click()
             except Exception as e:
-                self.logger.error(
-                    f"Der skete en fejl ved sletning af institutionnummer: {e}"
-                )
-                break
+                raise ValueError("Kunne ikke slette institutionnummer") from e
 
     def slet_bruger(self):
         for attempt in range(3):
