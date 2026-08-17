@@ -88,7 +88,7 @@ class OESSelectors:
     # --------------------------------- Navigering // Navigation -----------------------------------
 
     # oes logo --> main page
-    OES_LOGO = "body > app-root > div > mat-toolbar > div:nth-child(3) > div > div:nth-child(5) > img"
+    MAIN_PAGE = "https://odense.osi-local.dk/mod-core/#"
 
     # departement
     AFDELING_FANE = "#Fane_Afd_Inaktiv > a"

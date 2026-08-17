@@ -109,7 +109,7 @@ class OESClient:
 
         self._page.wait_for_load_state("domcontentloaded")
 
-        self._page.click(oss.OES_LOGO)
+        self._page.goto(oss.MAIN_PAGE)
         self._page.wait_for_timeout(3000)
 
         # håndtering af iframe med flere frames vha for loop  // handling of iframe with several framesets with a "for loop"
@@ -263,5 +263,5 @@ class OESClient:
                 f"Forventede 'J' i 'bruger spærret', men fandt '{assert_bruger_spaerret}'"
             )
 
-        self._page.click(oss.OES_LOGO)
+        self._page.goto(oss.MAIN_PAGE)
         self._page.wait_for_timeout(3000)
