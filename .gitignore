@@ -1,2 +1,39 @@
-.venv
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+
+# Test, lint and type-check caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Secrets and local settings
 .env
+.env.*
+!.env.example
+
+# Playwright output
+test-results/
+playwright-report/
+
+# Editors / OS
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local working files (e.g. unpacked Blue Prism releases)
+tmp/
