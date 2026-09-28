@@ -30,7 +30,13 @@ class OESClient:
         self._page: Page | None = None
         self._frame: Frame | None = None
 
-        self._login()
+        # ryd op hvis login fejler, så Playwright ikke efterlades kørende
+        # // clean up if login fails so Playwright is not left running
+        try:
+            self._login()
+        except Exception:
+            self.close()
+            raise
 
     def _ensure_browser(self) -> None:
         if self._page is not None:

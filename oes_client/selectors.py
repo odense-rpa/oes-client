@@ -1,3 +1,6 @@
+from typing import ClassVar
+
+
 class LoginSelectors:
     # municipality email
     KOMMUNE_EMAIL = "#i0116"
@@ -114,3 +117,110 @@ class OESCommands:
 
     # save user
     GEM_BRUGER = "Alt+2"
+
+
+class BilagFrames:
+    # ØS indlæser gamle JSP-sider i iframes under /mod-core-service/tab/<uuid>/os2000/...
+    # uuid og ?T= ændrer sig ved hver indlæsning, så frames findes via sti-endelse (regex)
+    # // ØS loads legacy JSPs in iframes; match frames by path suffix
+    BILAGSOVERSIGT = r"/os2000/handel/oversigt\.jsp"
+    BILAGSOVERSIGT_BTM = r"/os2000/handel/oversigt_btm\.jsp"
+    EBILAG = r"/os2000/bilag/EBilag/EBilag\.jsp"
+    EBILAG_BTM = r"/os2000/bilag/EBilag/EBilag_btm\.jsp"
+    ORIGINAL_XML = r"/os2000/bilag/EBilag/OrigFaktOIOVis\.jsp"
+    LOADING = r"/os2000/html/tom\.html"
+    # alle knap-frames // any bottom button frame
+    BTM = r"_btm\.jsp"
+
+
+class BilagSelectors:
+    # ------------------------------ Navigering // Navigation --------------------------------
+
+    # sso knap på login siden i ØS // "Log på via SSO" button
+    SSO_KNAP = "button.btn-sso"
+
+    # overskrifter // page headers
+    OPSAETNING_OVERSKRIFT = 'td.header:text-is("Opsætning")'
+    BILAGSOVERSIGT_OVERSKRIFT = 'td.header:text-is("Bilagsoversigt")'
+    FAKTURA_DETALJER_OVERSKRIFT = 'td.header:text-is("Faktura - detaljer")'
+
+    # loading animation i tom.html frame // loading gif in tom.html frame
+    LOADING_ANIMATION = "xpath=/html/body/table/tbody/tr/td/table/tbody/tr[2]/td[2]/img"
+
+    # fejlliste // error list
+    FEJLLISTE = "select#idFejlTekst"
+
+    # ------------------------------ Bilagsoversigt // Search form ---------------------------
+
+    REGNSKABSAAR_FRA = "select#idAarFra"
+    REGNSKABSAAR_TIL = "select#idAarTil"
+    AFDELINGSNR_FRA = "#idAfdnrFra"
+    AFDELINGSNR_TIL = "#idAfdnrTil"
+    # ligger på fanen "Andre kriterier" // on the hidden "Andre kriterier" tab
+    CPRNR_FRA = "#idCprnrFra"
+    CPRNR_TIL = "#idCprnrTil"
+    DATO_TYPE = "select#idDatoType"
+    DATO_FRA = "#idDatoFra"
+    DATO_TIL = "#idDatoTil"
+    BELOEB_TIL = "#idBelobMMTil"
+
+    # søgningstype // search type (options: Fakturanr, Bestillingsnr, Ext. Bestillingsnr,
+    # Bident, EANnr, UUID, Ext. sys - kun Bident er porteret // only Bident is ported)
+    SOEGNINGSTYPE = "select#idBestilType"
+    BIDENT = "#idBident"
+    # øvrige søgefelter // other search fields: #idFaktnrFra, #idBestilFra,
+    # #idEXTBESTILNRFra, #idEannrFra, #idUUID, #idExtsys
+
+    # status checkboxe - navnene matcher ikke id'erne, mapping er fra Blue Prism
+    # // status checkboxes - names do not match ids, mapping taken from Blue Prism
+    STATUS_CHECKBOXE: ClassVar[dict[str, str]] = {
+        "behandles": "#idFak_Varemodtaget",
+        "foranvises": "#idFak_Foranvises",
+        "konteret": "#idFak_Konterede",
+        "bogfoeres": "#idFak_Bogfores",
+        "efteranvises": "#idFak_Efteranvises",
+        "bogfoert": "#idFak_Behandlede",
+        "sendte": "#idFak_SendFejl",
+        "kladde": "#idBes_Kladde",
+        "inaktiveret": "#idFak_Annulerede",
+    }
+
+    # ------------------------------ Knapper i bunden // Bottom buttons ----------------------
+
+    VIS_KNAP = 'input[alt^="Vis søgning"]'
+    GEM_KNAP = 'input[alt^="Gem - Alt+2"]'
+    REDIGER_KNAP = 'input[alt^="Rediger - Alt+3"]'
+    # alt-teksten har dobbelt mellemrum før "-" // alt text has a double space before "-"
+    VAREMODTAG_KNAP = 'input[alt^="Tryk her for at varemodtage fakturaen"]'
+    TILBAGE_KNAP = 'input[name="Tilbage"]'
+    NAESTE_SIDE = 'input[alt^="Næste side"]'
+    FOERSTE_SIDE = 'input[alt^="Første side"]'
+    SIDETALSVAELGER = "select#idSideantal"
+    RESULTAT_TABEL = "td#maintable > table"
+
+    # ------------------------------ Bilag // Invoice details --------------------------------
+
+    BILAGSIDENTIFIKATION = "td.infocell"
+    ORIGINAL_FANE = 'a.tab:text-is("Original")'
+    XML_LINK = 'a:has-text("Klik her for at åbne xml")'
+
+    BEMAERKNING = "#idBemaerkning"
+    # gemt bemærkning i visningstilstand // saved remark in view mode (skal verificeres live)
+    BEMAERKNING_VIS = "td.infocellwrap"
+
+    # konteringslinjer - {n} er rækkens position fra 0 // kontering lines, {n} = row index
+    BIDENT_LINJE = "#idBident_LKF_{n}"
+    CPR_LINJE = "#idCprnr_LKF_{n}"
+    KONTONR_LINJE = "#idKontoNr_LKF_{n}"
+    POSTERINGSTEKST_LINJE = "#idPostext_LKF_{n}"
+    BELOEB_LINJE = "#idBelobMM_LKF_{n}"
+    DEBET_KREDIT_LINJE = "select#idDebkrd_LKF_{n}"
+    SLET_LINJE = 'a[href*="raekkeSlet_LKF_,{n}\'"]'
+    SLET_LINJER = 'a[href*="raekkeSlet_LKF_,"]'
+    # tilføj linje efter række {n} - verificeret på ØS test (href
+    # "javascript:setFunktionSubmit('EBilag','raekkeTilfoej_LKF_,0')")
+    # // add line after row {n} - verified on ØS test
+    TILFOEJ_LINJE = 'a[href*="raekkeTilfoej_LKF_,{n}\'"]'
+
+    B_SKAT_LINJE = "select#idBskat_LKF_{n}"
+    INSTITUTION = "#idInstitution_LKF_0"

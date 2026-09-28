@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
+         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
+         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:ID>F-1001</cbc:ID>
+  <cbc:Note>Faktura for hjælpemidler</cbc:Note>
+  <cac:InvoiceLine>
+    <cbc:ID>1</cbc:ID>
+    <cbc:Note>Borger 010101-1234</cbc:Note>
+    <cbc:LineExtensionAmount currencyID="DKK">1234.50</cbc:LineExtensionAmount>
+    <cac:Delivery>
+      <cac:DeliveryParty>
+        <cac:PartyIdentification>
+          <cbc:ID>0101011234</cbc:ID>
+        </cac:PartyIdentification>
+        <cac:PartyLegalEntity>
+          <cbc:RegistrationName>Jens Hansen</cbc:RegistrationName>
+          <cbc:CompanyID>0101011234</cbc:CompanyID>
+        </cac:PartyLegalEntity>
+      </cac:DeliveryParty>
+    </cac:Delivery>
+    <cac:TaxTotal>
+      <cbc:TaxAmount currencyID="DKK">308.63</cbc:TaxAmount>
+    </cac:TaxTotal>
+    <cac:Item>
+      <cbc:Description>Rollator</cbc:Description>
+      <cbc:Name>Rollator model X</cbc:Name>
+    </cac:Item>
+  </cac:InvoiceLine>
+  <cac:InvoiceLine>
+    <cbc:ID>2</cbc:ID>
+    <cbc:LineExtensionAmount currencyID="DKK">-100.00</cbc:LineExtensionAmount>
+    <cac:Item>
+      <cbc:Name>Rabat</cbc:Name>
+    </cac:Item>
+  </cac:InvoiceLine>
+</Invoice>

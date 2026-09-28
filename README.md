@@ -34,6 +34,35 @@ with OESClient() as client:
     client.slet_bruger()
 ```
 
+## Bilagshåndtering (ØS Indsigt)
+
+`OESBilagClient` (i `oes_client.bilag`) udvider `OESClient` med de ØS-handlinger, der bruges af
+betalingsprocesserne (port af Blue Prism objektet "ØS Indsigt (Chrome) VBO"):
+
+- `udsoeg_bilag(regnskabsaar_fra, regnskabsaar_til, afdelingsnummer, ...)` — søg bilag på bilagsoversigten
+- `hent_bilags_xml(bilagsid)` — hent den originale faktura-XML (OIOUBL)
+- `parse_konteringslinjer(xml)` — udtræk fakturalinjer fra XML (kræver ingen browser)
+- `opret_konteringslinjer(bilagsid, linjer, bemaerkning)`
+- `varemodtag_bilag(bilagsid, cpr, kontonummer, posteringstekst, bemaerkning, b_skat)`
+- `varemodtag_bilag_konteret(bilagsid, bemaerkning)`
+- `aendre_bemaerkning(bilagsid, bemaerkning)`
+
+`BASE_URL` bestemmer miljøet, fx `https://odensetest.osi-local.dk/mod-core` for test.
+
+## Test
+
+Kopier `.env.example` til `.env` og udfyld. `tests/conftest.py` indlæser `.env` selv, så testene
+opfører sig ens i terminal, VS Code og CI. Tests mod ØS springes over, hvis `BASE_URL`,
+`OES_USERNAME` eller `OES_PASSWORD` mangler.
+
+```bash
+uv run python -m pytest tests/test_bilag_xml.py   # offline
+uv run python -m pytest tests/test_bilag.py       # mod ØS
+```
+
+`tests/test_bilag.py` kræver `TEST_AFDELINGSNUMMER` / `TEST_BILAGSID`; tests der ændrer bilag kræver
+desuden `OES_ALLOW_WRITE=1` (og evt. `TEST_CPR`, `TEST_KONTONUMMER`).
+
 ## Licens
 
 MIT
