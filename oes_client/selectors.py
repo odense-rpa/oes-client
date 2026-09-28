@@ -90,9 +90,6 @@ class OESSelectors:
 
     # --------------------------------- Navigering // Navigation -----------------------------------
 
-    # oes logo --> main page
-    MAIN_PAGE = "https://odense.osi-local.dk/mod-core/#"
-
     # departement
     AFDELING_FANE = "#Fane_Afd_Inaktiv > a"
 

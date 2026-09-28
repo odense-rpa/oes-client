@@ -9,15 +9,12 @@ import pytest
 
 from oes_client.bilag import BILAG_KOLONNER, BilagIkkeFundet, _idag
 
-skriv = pytest.mark.skipif(
-    os.getenv("OES_ALLOW_WRITE") != "1",
-    reason="ændrer bilag i ØS - sæt OES_ALLOW_WRITE=1",
-)
+skriv = pytest.mark.usefixtures("tillad_skriv")
 
 
-def test_udsoeg_bilag(oes_bilag_client, test_afdelingsnummer):
+def test_udsoeg_bilag(oes, test_afdelingsnummer):
     aar = _idag().year
-    bilag = oes_bilag_client.udsoeg_bilag(
+    bilag = oes.bilag.udsoeg_bilag(
         regnskabsaar_fra=aar - 1,
         regnskabsaar_til=aar,
         afdelingsnummer=test_afdelingsnummer,
@@ -29,24 +26,24 @@ def test_udsoeg_bilag(oes_bilag_client, test_afdelingsnummer):
         assert post["Bilagsid"]
 
 
-def test_hent_bilags_xml(oes_bilag_client, test_bilagsid):
-    xml = oes_bilag_client.hent_bilags_xml(test_bilagsid)
+def test_hent_bilags_xml(oes, test_bilagsid):
+    xml = oes.bilag.hent_bilags_xml(test_bilagsid)
     assert "Invoice" in xml
-    assert len(oes_bilag_client.parse_konteringslinjer(xml)) > 0
+    assert len(oes.bilag.parse_konteringslinjer(xml)) > 0
 
 
-def test_find_bilag_ukendt(oes_bilag_client):
+def test_find_bilag_ukendt(oes):
     with pytest.raises(BilagIkkeFundet):
-        oes_bilag_client.hent_bilags_xml("999999999999")
+        oes.bilag.hent_bilags_xml("999999999999")
 
 
 @skriv
-def test_aendre_bemaerkning(oes_bilag_client, test_bilagsid):
-    oes_bilag_client.aendre_bemaerkning(test_bilagsid, "Test af oes-client")
+def test_aendre_bemaerkning(oes, test_bilagsid):
+    oes.bilag.aendre_bemaerkning(test_bilagsid, "Test af oes-client")
 
 
 @skriv
-def test_opret_konteringslinjer(oes_bilag_client):
+def test_opret_konteringslinjer(oes):
     # bilaget skal have moms og en leverandør uden b-skat, og må ikke være varemodtaget.
     # Kan genbruges, da linjerne erstattes ved hver kørsel
     # // invoice needs moms, a supplier without b-skat, and must not be received
@@ -57,11 +54,10 @@ def test_opret_konteringslinjer(oes_bilag_client):
 
     # ØS kræver at linjerne summer til bilagets beløb inkl. moms
     # // ØS requires the lines to sum to the invoice total incl. moms
-    xml = oes_bilag_client.hent_bilags_xml(bilagsid)
+    xml = oes.bilag.hent_bilags_xml(bilagsid)
     total = round(
         sum(
-            l["Amount"] + l["TaxAmount"]
-            for l in oes_bilag_client.parse_konteringslinjer(xml)
+            l["Amount"] + l["TaxAmount"] for l in oes.bilag.parse_konteringslinjer(xml)
         ),
         2,
     )
@@ -80,12 +76,12 @@ def test_opret_konteringslinjer(oes_bilag_client):
             "Beløb inkl moms": -25.5,
         },
     ]
-    oes_bilag_client.opret_konteringslinjer(bilagsid, linjer, "Forberedt af test")
+    oes.bilag.opret_konteringslinjer(bilagsid, linjer, "Forberedt af test")
 
 
 @skriv
-def test_varemodtag_bilag(oes_bilag_client, test_bilagsid):
-    oes_bilag_client.varemodtag_bilag(
+def test_varemodtag_bilag(oes, test_bilagsid):
+    oes.bilag.varemodtag_bilag(
         test_bilagsid,
         cpr=os.getenv("TEST_CPR", ""),
         kontonummer=os.getenv("TEST_KONTONUMMER", ""),
@@ -95,5 +91,5 @@ def test_varemodtag_bilag(oes_bilag_client, test_bilagsid):
 
 
 @skriv
-def test_varemodtag_bilag_konteret(oes_bilag_client, test_bilagsid):
-    oes_bilag_client.varemodtag_bilag_konteret(test_bilagsid, "Behandlet af test")
+def test_varemodtag_bilag_konteret(oes, test_bilagsid):
+    oes.bilag.varemodtag_bilag_konteret(test_bilagsid, "Behandlet af test")

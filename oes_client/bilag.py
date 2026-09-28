@@ -6,22 +6,19 @@ statusattester".
 """
 
 import re
-import time
 from datetime import date, datetime
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
-from playwright.sync_api import Dialog, Error, Frame, Locator, TimeoutError
+from playwright.sync_api import Frame, Locator, TimeoutError
 
 from .bilag_xml import parse_konteringslinjer
-from .client import OESClient
+from .exceptions import BilagIkkeFundet, OESFejl
 from .selectors import BilagFrames as bf
 from .selectors import BilagSelectors as bs
+from .session import INGEN_RESULTATER, OESSession
 
-# interval for polling af ØS // polling interval for ØS
-POLL_MS = 100
-
-INGEN_RESULTATER = "der passede til de indtastede søgekriterier"
+__all__ = ["BilagClient", "BilagIkkeFundet", "OESFejl", "parse_konteringslinjer"]
 
 # kolonner i resultattabellen på bilagsoversigten (0-indekseret)
 # // columns in the result table of the invoice overview (0-indexed)
@@ -43,14 +40,6 @@ BILAG_KOLONNER = {
 }
 DATO_KOLONNER = {"Betaling-leveringsdato", "Faktura-bestildato", "Oprettet"}
 TAL_KOLONNER = {"Beløb inkl moms", "Beløb eks moms"}
-
-
-class OESFejl(Exception):
-    """Forretningsfejl fra ØS, fx valideringsfejl ved gem // Business error from ØS."""
-
-
-class BilagIkkeFundet(OESFejl):
-    """Bilaget kunne ikke findes med de givne søgekriterier."""
 
 
 def _dansk_tal(tekst: str) -> float | None:
@@ -81,144 +70,26 @@ def _dansk_beloeb(beloeb: float) -> str:
     return f"{beloeb:.2f}".replace(".", ",")
 
 
-class OESBilagClient(OESClient):
-    """OESClient udvidet med bilagshandlinger // OESClient with invoice actions."""
+class BilagClient:
+    """Bilagshandlinger i ØS Indsigt // Invoice actions in ØS Indsigt.
+
+    Oprettes af OESClient og tilgås som oes.bilag.
+    """
 
     parse_konteringslinjer = staticmethod(parse_konteringslinjer)
 
-    def __init__(
-        self, base_url: str, username: str, password: str, headless: bool = False
-    ):
-        super().__init__(base_url, username, password, headless)
-        self._root = self._mod_core_root(self.base_url)
-        self._page.on("dialog", self._haandter_dialog)
+    def __init__(self, session: OESSession):
+        self._session = session
 
     # ------------------------------ Hjælpere // Helpers -------------------------------
 
-    @staticmethod
-    def _mod_core_root(base_url: str) -> str:
-        # fx https://odensetest.osi-local.dk/mod-core - virker både på test og prod
-        # // e.g. https://odensetest.osi-local.dk/mod-core - works on test and prod
-        if "/mod-core" in base_url:
-            return base_url[: base_url.index("/mod-core") + len("/mod-core")]
-        parts = urlsplit(base_url)
-        return f"{parts.scheme}://{parts.netloc}/mod-core"
-
-    def _haandter_dialog(self, dialog: Dialog) -> None:
-        self.logger.warning(f"[dialog] {dialog.type}: {dialog.message}")
-        dialog.accept()
-
-    def _soeg_frame(
-        self,
-        selector: str,
-        frame_pattern: str | None = None,
-        has_text: str | re.Pattern | None = None,
-    ) -> Frame | None:
-        """Finder den frame der indeholder selector (ét gennemløb)."""
-        regex = re.compile(frame_pattern) if frame_pattern else None
-        # nyeste frames først, da ØS kan have gamle faner liggende (verificeres live)
-        # // newest frames first, ØS may keep old tabs around
-        for frame in reversed(self._page.frames):
-            if regex and not regex.search(frame.url):
-                continue
-            try:
-                if frame.locator(selector, has_text=has_text).count() > 0:
-                    return frame
-            except Error:
-                continue  # frame blev fjernet undervejs // frame detached
-        return None
-
-    def _vent_paa_en_af(
-        self, muligheder: list[tuple[str, str | None]], timeout: float = 30_000
-    ) -> tuple[int, Frame]:
-        """Venter på den første af (selector, frame_pattern) der findes."""
-        deadline = time.monotonic() + timeout / 1000
-        while True:
-            for i, (selector, frame_pattern) in enumerate(muligheder):
-                frame = self._soeg_frame(selector, frame_pattern)
-                if frame is not None:
-                    return i, frame
-            if time.monotonic() > deadline:
-                raise TimeoutError(f"Fandt ingen af {[m[0] for m in muligheder]}")
-            self._page.wait_for_timeout(POLL_MS)
-
-    def _frame_med(
-        self,
-        selector: str,
-        frame_pattern: str | None = None,
-        timeout: float = 30_000,
-        has_text: str | re.Pattern | None = None,
-    ) -> Frame:
-        deadline = time.monotonic() + timeout / 1000
-        while True:
-            frame = self._soeg_frame(selector, frame_pattern, has_text)
-            if frame is not None:
-                return frame
-            if time.monotonic() > deadline:
-                raise TimeoutError(f"Fandt ikke '{selector}' i ØS")
-            self._page.wait_for_timeout(POLL_MS)
-
-    def _klik(
-        self, selector: str, frame_pattern: str | None = None, timeout: float = 30_000
-    ) -> Locator:
-        knap = self._frame_med(selector, frame_pattern, timeout).locator(selector).first
-        knap.click()
-        return knap
-
-    def _vent_paa_genindlaesning(self, locator: Locator, timeout: float) -> None:
-        """Venter til elementet er fjernet fra DOM'en, fx fordi framen genindlæses."""
-        handle = locator.element_handle()
-        deadline = time.monotonic() + timeout / 1000
-        while time.monotonic() < deadline:
-            try:
-                if not handle.evaluate("e => e.isConnected"):
-                    return
-            except Error:
-                return  # framen er genindlæst // frame reloaded
-            self._page.wait_for_timeout(POLL_MS)
-        raise TimeoutError("ØS genindlæste ikke siden")
-
-    def _vent_paa_loading(self, timeout: float = 60_000) -> None:
-        self._page.wait_for_timeout(500)
-        frame = self._soeg_frame(bs.LOADING_ANIMATION, bf.LOADING)
-        if frame is None:
-            return
-        try:
-            frame.locator(bs.LOADING_ANIMATION).first.wait_for(
-                state="hidden", timeout=timeout
-            )
-        except TimeoutError:
-            raise TimeoutError(
-                "ØS loadede i meget lang tid. Måske noget er galt?"
-            ) from None
-        except Error:
-            pass  # framen blev fjernet // frame detached
-
-    def _naviger(self, link: str) -> None:
-        """Går til startsiden, logger ind via SSO hvis nødvendigt, og derefter til link."""
-        for forsoeg in range(3):
-            try:
-                self._page.goto(f"{self._root}/#/", wait_until="domcontentloaded")
-                i, frame = self._vent_paa_en_af(
-                    [(bs.SSO_KNAP, None), (bs.OPSAETNING_OVERSKRIFT, None)], 30_000
-                )
-                if i == 0:
-                    frame.locator(bs.SSO_KNAP).first.click()
-                    self._frame_med(bs.OPSAETNING_OVERSKRIFT, timeout=30_000)
-                self._page.goto(f"{self._root}/#/{link}", wait_until="domcontentloaded")
-                return
-            except Error as e:
-                if forsoeg == 2:
-                    raise
-                self.logger.warning(f"[naviger] forsøg {forsoeg + 1} fejlede: {e}")
-
     def _bilagsoversigt(self) -> Frame:
-        self._naviger("bilag/oversigt")
-        return self._frame_med(bs.BILAGSOVERSIGT_OVERSKRIFT, bf.BILAGSOVERSIGT)
+        self._session.naviger("bilag/oversigt")
+        return self._session.frame_med(bs.BILAGSOVERSIGT_OVERSKRIFT, bf.BILAGSOVERSIGT)
 
     def _laes_fejlbeskeder(self) -> list[str]:
         try:
-            frame = self._frame_med(bs.FEJLLISTE, timeout=5_000)
+            frame = self._session.frame_med(bs.FEJLLISTE, timeout=5_000)
         except TimeoutError:
             return []
         tekster = frame.locator(bs.FEJLLISTE).first.locator("option").all_inner_texts()
@@ -248,44 +119,44 @@ class OESBilagClient(OESClient):
         for navn, selector in bs.STATUS_CHECKBOXE.items():
             frame.locator(selector).set_checked(status.get(navn, navn == "kladde"))
 
-        self._klik(bs.VIS_KNAP, bf.BILAGSOVERSIGT_BTM)
-        self._vent_paa_loading()
+        self._session.klik(bs.VIS_KNAP, bf.BILAGSOVERSIGT_BTM)
+        self._session.vent_paa_loading()
 
         try:
-            self._frame_med(
+            self._session.frame_med(
                 bs.BILAGSIDENTIFIKATION,
                 bf.EBILAG,
                 timeout=15_000,
                 has_text=re.compile(rf"^\s*{re.escape(bilagsid)}"),
             )
         except TimeoutError:
-            fejl = " ".join(self._laes_fejlbeskeder())
+            fejl = " ".join(self._session.laes_fejlbeskeder())
             if "Der var ingen Bilag" in fejl and INGEN_RESULTATER in fejl:
                 return False
             raise TimeoutError(f"Bilagsidentifikation kunne ikke findes. {fejl}")
 
         if rediger:
-            self._klik(bs.REDIGER_KNAP, bf.EBILAG_BTM)
-            self._frame_med(bs.GEM_KNAP, bf.EBILAG_BTM, timeout=30_000)
-            self._vent_paa_loading()
+            self._session.klik(bs.REDIGER_KNAP, bf.EBILAG_BTM)
+            self._session.frame_med(bs.GEM_KNAP, bf.EBILAG_BTM, timeout=30_000)
+            self._session.vent_paa_loading()
         return True
 
     def _aabn_til_redigering(self, bilagsid: str, **status: bool) -> Frame:
         if not self._find_bilag(bilagsid, rediger=True, **status):
             raise BilagIkkeFundet(f"Fandt ikke bilag {bilagsid}")
-        return self._frame_med(bs.BEMAERKNING, bf.EBILAG)
+        return self._session.frame_med(bs.BEMAERKNING, bf.EBILAG)
 
     def _gem(self, forventet_knap: str) -> None:
         """Trykker Gem og venter på at forventet_knap (fx Rediger) kommer frem."""
         for _ in range(3):
-            gem = self._klik(bs.GEM_KNAP, bf.EBILAG_BTM)
+            gem = self._session.klik(bs.GEM_KNAP, bf.EBILAG_BTM)
             try:
-                self._vent_paa_genindlaesning(gem, 30_000)
+                self._session.vent_paa_genindlaesning(gem, 30_000)
             except TimeoutError:
                 continue
-            self._vent_paa_loading()
+            self._session.vent_paa_loading()
             try:
-                i, _ = self._vent_paa_en_af(
+                i, _ = self._session.vent_paa_en_af(
                     [(forventet_knap, bf.EBILAG_BTM), (bs.GEM_KNAP, bf.EBILAG_BTM)],
                     10_000,
                 )
@@ -293,11 +164,11 @@ class OESBilagClient(OESClient):
                 continue
             if i == 0:
                 return
-        fejl = "\n".join(self._laes_fejlbeskeder())
+        fejl = "\n".join(self._session.laes_fejlbeskeder())
         raise OESFejl(f"Fejl kunne ikke gemme\n{fejl}")
 
     def _varemodtag(self) -> None:
-        knap = self._klik(bs.VAREMODTAG_KNAP, bf.EBILAG_BTM)
+        knap = self._session.klik(bs.VAREMODTAG_KNAP, bf.EBILAG_BTM)
         try:
             knap.wait_for(state="hidden", timeout=10_000)
         except TimeoutError:
@@ -315,7 +186,7 @@ class OESBilagClient(OESClient):
             felt.select_option(index=0)  # tom b-skat // blank b-skat
 
     def _laes_tabel(self) -> list[list[str]]:
-        frame = self._frame_med(bs.RESULTAT_TABEL, timeout=10_000)
+        frame = self._session.frame_med(bs.RESULTAT_TABEL, timeout=10_000)
         return frame.locator(bs.RESULTAT_TABEL).first.evaluate(
             "t => Array.from(t.rows).map("
             "r => Array.from(r.cells).map(c => c.innerText.trim()))"
@@ -324,14 +195,14 @@ class OESBilagClient(OESClient):
     def _hent_tabel(self) -> list[list[str]]:
         """Læser alle sider af resultatlisten // Reads all pages of the result list."""
         try:
-            frame = self._frame_med(bs.SIDETALSVAELGER, timeout=5_000)
+            frame = self._session.frame_med(bs.SIDETALSVAELGER, timeout=5_000)
         except TimeoutError:
-            fejl = " ".join(self._laes_fejlbeskeder())
+            fejl = " ".join(self._session.laes_fejlbeskeder())
             if fejl and INGEN_RESULTATER not in fejl:
                 raise OESFejl(f"ØS fejl: {fejl}") from None
             # uden sidetalsvælger kan der stadig være én side (verificeres live)
             # // without the page selector there may still be a single page
-            if self._soeg_frame(bs.RESULTAT_TABEL) is None:
+            if self._session.soeg_frame(bs.RESULTAT_TABEL) is None:
                 return []
             return self._laes_tabel()
 
@@ -340,10 +211,12 @@ class OESBilagClient(OESClient):
         for side in range(antal_sider):
             raekker += self._laes_tabel()
             if side < antal_sider - 1:
-                tabel = self._frame_med(bs.RESULTAT_TABEL).locator(bs.RESULTAT_TABEL)
-                self._klik(bs.NAESTE_SIDE, bf.BTM)
-                self._vent_paa_genindlaesning(tabel.first, 30_000)
-                self._vent_paa_loading()
+                tabel = self._session.frame_med(bs.RESULTAT_TABEL).locator(
+                    bs.RESULTAT_TABEL
+                )
+                self._session.klik(bs.NAESTE_SIDE, bf.BTM)
+                self._session.vent_paa_genindlaesning(tabel.first, 30_000)
+                self._session.vent_paa_loading()
         return raekker
 
     # ------------------------------ Handlinger // Actions -----------------------------
@@ -382,13 +255,13 @@ class OESBilagClient(OESClient):
         ):
             frame.locator(selector).fill(dato.strftime("%d%m%Y") if dato else "")
 
-        self._klik(bs.VIS_KNAP, bf.BILAGSOVERSIGT_BTM)
-        self._vent_paa_loading()
+        self._session.klik(bs.VIS_KNAP, bf.BILAGSOVERSIGT_BTM)
+        self._session.vent_paa_loading()
 
         # ved kun ét resultat åbner ØS bilaget direkte - gå tilbage til listen
         # // with a single hit ØS opens the invoice directly - go back to the list
         try:
-            i, _ = self._vent_paa_en_af(
+            i, _ = self._session.vent_paa_en_af(
                 [
                     (bs.FAKTURA_DETALJER_OVERSKRIFT, bf.EBILAG),
                     (bs.SIDETALSVAELGER, None),
@@ -397,8 +270,8 @@ class OESBilagClient(OESClient):
                 10_000,
             )
             if i == 0:
-                self._klik(bs.TILBAGE_KNAP, bf.BTM)
-                self._vent_paa_loading()
+                self._session.klik(bs.TILBAGE_KNAP, bf.BTM)
+                self._session.vent_paa_loading()
         except TimeoutError:
             pass
 
@@ -430,16 +303,18 @@ class OESBilagClient(OESClient):
         if not self._find_bilag(bilagsid, **alle_status):
             raise BilagIkkeFundet(f"Fandt ikke bilag {bilagsid}")
 
-        self._klik(bs.ORIGINAL_FANE, bf.EBILAG)
+        self._session.klik(bs.ORIGINAL_FANE, bf.EBILAG)
         try:
-            frame = self._frame_med(bs.XML_LINK, bf.ORIGINAL_XML, timeout=10_000)
+            frame = self._session.frame_med(
+                bs.XML_LINK, bf.ORIGINAL_XML, timeout=10_000
+            )
         except TimeoutError:
             raise TimeoutError("Kunne ikke finde link til xml fil") from None
         href = frame.locator(bs.XML_LINK).first.get_attribute("href")
 
         # hentes via browserens session, så cookies følger med
         # // fetched through the browser session so cookies are included
-        svar = self._context.request.get(urljoin(frame.url, href))
+        svar = self._session.context.request.get(urljoin(frame.url, href))
         if not svar.ok:
             raise OESFejl(f"Kunne ikke hente xml ({svar.status}): {href}")
         return svar.text()
@@ -462,7 +337,9 @@ class OESBilagClient(OESClient):
         # // delete all lines but the first; only row 0 is editable, so delete from
         # the bottom
         for _ in range(100):
-            frame = self._frame_med(bs.BIDENT_LINJE.format(n=0), bf.EBILAG, 60_000)
+            frame = self._session.frame_med(
+                bs.BIDENT_LINJE.format(n=0), bf.EBILAG, 60_000
+            )
             raekker = frame.eval_on_selector_all(
                 bs.SLET_LINJER,
                 "as => as.map(a => +a.getAttribute('href').match(/_LKF_,(\\d+)/)[1])",
@@ -472,12 +349,14 @@ class OESBilagClient(OESClient):
                 break
             anker = frame.locator(bs.BIDENT_LINJE.format(n=0))
             frame.locator(bs.SLET_LINJE.format(n=sidste)).first.click()
-            self._vent_paa_genindlaesning(anker, 60_000)
+            self._session.vent_paa_genindlaesning(anker, 60_000)
         else:
             raise OESFejl("Fejl ved sletning af rækker")
 
         for n, linje in enumerate(linjer):
-            frame = self._frame_med(bs.BIDENT_LINJE.format(n=n), bf.EBILAG, 60_000)
+            frame = self._session.frame_med(
+                bs.BIDENT_LINJE.format(n=n), bf.EBILAG, 60_000
+            )
             beloeb = float(linje["Beløb inkl moms"])
             frame.locator(bs.BIDENT_LINJE.format(n=n)).fill(bilagsid)
             frame.locator(bs.CPR_LINJE.format(n=n)).fill(linje["Cpr"])
@@ -502,10 +381,10 @@ class OESBilagClient(OESClient):
                 # Earlier rows become read-only, so only the current row has inputs
                 anker = frame.locator(bs.BIDENT_LINJE.format(n=n))
                 frame.locator(bs.TILFOEJ_LINJE.format(n=n)).first.click()
-                self._vent_paa_genindlaesning(anker, 60_000)
+                self._session.vent_paa_genindlaesning(anker, 60_000)
                 # ny række = tilføjet; aktuel række stadig redigerbar = afvist af ØS
                 # // new row = added; current row still editable = refused by ØS
-                i, _ = self._vent_paa_en_af(
+                i, _ = self._session.vent_paa_en_af(
                     [
                         (bs.BIDENT_LINJE.format(n=n + 1), bf.EBILAG),
                         (bs.BIDENT_LINJE.format(n=n), bf.EBILAG),
@@ -513,13 +392,13 @@ class OESBilagClient(OESClient):
                     60_000,
                 )
                 if i == 1:
-                    fejl = "\n".join(self._laes_fejlbeskeder())
+                    fejl = "\n".join(self._session.laes_fejlbeskeder())
                     raise OESFejl(f"Kunne ikke tilføje konteringslinje\n{fejl}")
 
         if bemaerkning:
-            self._frame_med(bs.BEMAERKNING, bf.EBILAG).locator(bs.BEMAERKNING).fill(
-                bemaerkning
-            )
+            self._session.frame_med(bs.BEMAERKNING, bf.EBILAG).locator(
+                bs.BEMAERKNING
+            ).fill(bemaerkning)
         self._gem(bs.REDIGER_KNAP)
 
     def varemodtag_bilag(
@@ -565,7 +444,7 @@ class OESBilagClient(OESClient):
         self._gem(bs.REDIGER_KNAP)
 
         gemt = (
-            self._frame_med(bs.BEMAERKNING_VIS, bf.EBILAG, timeout=10_000)
+            self._session.frame_med(bs.BEMAERKNING_VIS, bf.EBILAG, timeout=10_000)
             .locator(bs.BEMAERKNING_VIS)
             .first.inner_text()
         )

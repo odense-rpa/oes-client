@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from oes_client.client import OESClient
+from oes_client import OESClient
 
 # testindstillinger læses eksplicit fra .env i projektroden
 # // test settings are loaded explicitly from .env in the project root
@@ -27,23 +27,27 @@ def _oes_login() -> dict:
     }
 
 
+@pytest.fixture(scope="session")
+def oes():
+    """Én indlogget OESClient for hele testkørslen // One login per test run."""
+    client = OESClient(**_oes_login(), headless=False)
+    yield client
+    client.close()
+
+
 @pytest.fixture
-def oes_client():
-    return OESClient(**_oes_login(), headless=False)
+def tillad_skriv():
+    """Springer tests over der ændrer data i ØS, medmindre OES_ALLOW_WRITE=1."""
+    if os.getenv("OES_ALLOW_WRITE") != "1":
+        pytest.skip("ændrer data i ØS - sæt OES_ALLOW_WRITE=1")
 
 
 @pytest.fixture
 def test_bruger_id():
-    return os.getenv("TEST_BRUGER_ID")
-
-
-@pytest.fixture
-def oes_bilag_client():
-    from oes_client.bilag import OESBilagClient
-
-    client = OESBilagClient(**_oes_login(), headless=False)
-    yield client
-    client.close()
+    bruger_id = os.getenv("TEST_BRUGER_ID")
+    if not bruger_id:
+        pytest.skip("TEST_BRUGER_ID er ikke sat")
+    return bruger_id
 
 
 @pytest.fixture

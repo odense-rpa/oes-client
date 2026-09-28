@@ -1,14 +1,14 @@
 # oes-client
 
-Playwright-baseret Python-klient til OES (økonomi- og regnskabssystem) — giver automatiseret adgang til brugeradministration via OES-webgrænsefladen.
+Playwright-baseret Python-klient til OES (økonomi- og regnskabssystem) — giver automatiseret adgang til brugeradministration og bilagshåndtering via ØS Indsigt-webgrænsefladen.
 
 > Denne klient er ikke officielt støttet eller godkendt af leverandøren bag OES. Brug på eget ansvar.
 
 ## Nuværende funktionalitet
 
 - Autentificering via Microsoft/Azure AD SSO med kommunalt brugernavn og adgangskode
-- Søg efter bruger med `fremsoeg_bruger(bruger_id)`
-- Bloker bruger og fjern al adgang med `slet_bruger()` — nulstiller kassefelter, sætter bruger-blokeret-flag, fjerner adgangsgrupper, afdelingstalstildelinger og institutionsnummertildelinger
+- **Brugere** (`oes.brugere`): søg bruger og spær bruger/fjern al adgang
+- **Bilag** (`oes.bilag`): søg, hent XML, konter, varemodtag og ret bemærkning på bilag
 - Understøtter brug som kontekst-manager (`with`-sætning)
 
 ## Installation
@@ -28,26 +28,60 @@ uv add git+https://github.com/odense-rpa/oes-client
 ```python
 from oes_client import OESClient
 
-with OESClient() as client:
-    client.authenticate(email="bruger@odense.dk", password="hemmeligt")
-    client.fremsoeg_bruger("12345")
-    client.slet_bruger()
+with OESClient(base_url, username, password) as oes:
+    oes.brugere.fremsoeg_bruger("ABC")
+    oes.brugere.slet_bruger()
+
+    bilag = oes.bilag.udsoeg_bilag(2025, 2026, "4514800302")
 ```
 
-## Bilagshåndtering (ØS Indsigt)
+`base_url` bestemmer miljøet, fx `https://odensetest.osi-local.dk/mod-core` for test og
+`https://odense.osi-local.dk/mod-core` for produktion.
 
-`OESBilagClient` (i `oes_client.bilag`) udvider `OESClient` med de ØS-handlinger, der bruges af
-betalingsprocesserne (port af Blue Prism objektet "ØS Indsigt (Chrome) VBO"):
+### Brugere (`oes.brugere`)
+
+- `fremsoeg_bruger(bruger_id)` — søg bruger og husk den til næste kald
+- `slet_bruger()` — nulstiller kassefelter, sætter bruger-spærret, fjerner adgangsgrupper,
+  afdelings- og institutionsnumre
+
+### Bilag (`oes.bilag`)
+
+Port af Blue Prism objektet "ØS Indsigt (Chrome) VBO", som bruges af betalingsprocesserne:
 
 - `udsoeg_bilag(regnskabsaar_fra, regnskabsaar_til, afdelingsnummer, ...)` — søg bilag på bilagsoversigten
 - `hent_bilags_xml(bilagsid)` — hent den originale faktura-XML (OIOUBL)
 - `parse_konteringslinjer(xml)` — udtræk fakturalinjer fra XML (kræver ingen browser)
-- `opret_konteringslinjer(bilagsid, linjer, bemaerkning)`
+- `opret_konteringslinjer(bilagsid, linjer, bemaerkning)` — linjerne skal summe til bilagets beløb
 - `varemodtag_bilag(bilagsid, cpr, kontonummer, posteringstekst, bemaerkning, b_skat)`
 - `varemodtag_bilag_konteret(bilagsid, bemaerkning)`
 - `aendre_bemaerkning(bilagsid, bemaerkning)`
 
-`BASE_URL` bestemmer miljøet, fx `https://odensetest.osi-local.dk/mod-core` for test.
+Fejl: `OESFejl` for forretningsfejl fra ØS (fx valideringsfejl), `BilagIkkeFundet` når bilaget
+ikke findes. Playwright `TimeoutError` betyder, at ØS ikke svarede eller siden ikke så ud som
+forventet.
+
+## Arkitektur
+
+- `OESSession` (`session.py`) ejer browseren, login og de fælles hjælpere: frames, ventetider,
+  navigation og fejlbeskeder.
+- Hvert område er en lille klient, der får sessionen: `BilagClient` (`bilag.py`),
+  `BrugerClient` (`brugere.py`).
+- `OESClient` (`client.py`) opretter sessionen og områderne og samler dem som `oes.bilag`,
+  `oes.brugere`, ...
+
+Nyt område: opret `oes_client/<omraade>.py` med `class XClient: def __init__(self, session)`,
+læg selectors i `selectors.py`, tilføj `self.<omraade> = XClient(self.session)` i `OESClient`, og
+skriv `tests/test_<omraade>.py` med `oes`-fixturen.
+
+## Ændringer i 0.4.0
+
+Brud på API'et:
+
+- `OESClient(...).fremsoeg_bruger(x)` → `oes.brugere.fremsoeg_bruger(x)` (tilsvarende
+  `slet_bruger`)
+- `OESBilagClient(...)` → `OESClient(...).bilag`
+- `fremsoeg_bruger` går nu direkte til brugeradministration og bruger `base_url` i stedet for
+  en fast produktions-URL
 
 ## Test
 
@@ -56,12 +90,13 @@ opfører sig ens i terminal, VS Code og CI. Tests mod ØS springes over, hvis `B
 `OES_USERNAME` eller `OES_PASSWORD` mangler.
 
 ```bash
-uv run python -m pytest tests/test_bilag_xml.py   # offline
-uv run python -m pytest tests/test_bilag.py       # mod ØS
+uv run pytest tests/test_bilag_xml.py   # offline
+uv run pytest                           # alle, mod ØS (logger ind én gang)
 ```
 
-`tests/test_bilag.py` kræver `TEST_AFDELINGSNUMMER` / `TEST_BILAGSID`; tests der ændrer bilag kræver
-desuden `OES_ALLOW_WRITE=1` (og evt. `TEST_CPR`, `TEST_KONTONUMMER`).
+`tests/test_bilag.py` kræver `TEST_AFDELINGSNUMMER` / `TEST_BILAGSID`, `tests/test_brugere.py`
+kræver `TEST_BRUGER_ID`. Tests der ændrer data i ØS kræver desuden `OES_ALLOW_WRITE=1` (og evt.
+`TEST_KONTERING_BILAGSID`, `TEST_CPR`, `TEST_KONTONUMMER`).
 
 ## Licens
 
