@@ -60,6 +60,24 @@ Fejl: `OESFejl` for forretningsfejl fra ØS (fx valideringsfejl), `BilagIkkeFund
 ikke findes. Playwright `TimeoutError` betyder, at ØS ikke svarede eller siden ikke så ud som
 forventet.
 
+### Flere browserklienter i samme proces
+
+Playwrights sync-API tillader kun én instans pr. tråd. Skal OESClient køre sammen med
+andre Playwright-baserede klienter (fx nfs-client), så start én instans og giv den til
+dem alle. Hver klient får stadig sin egen browser, sit eget vindue og sit eget login.
+Den delte instans stoppes ikke, når klienten lukkes; det gør `with`-blokken.
+
+```python
+from playwright.sync_api import sync_playwright
+
+with sync_playwright() as pw:
+    with OESClient(base_url, username, password, playwright=pw) as oes, \
+         NFSClient(anden_url, username, password, playwright=pw) as nfs:
+        ...
+```
+
+Uden `playwright` (standard) starter og stopper klienten sin egen instans som hidtil.
+
 ## Arkitektur
 
 - `OESSession` (`session.py`) ejer browseren, login og de fælles hjælpere: frames, ventetider,
@@ -72,6 +90,12 @@ forventet.
 Nyt område: opret `oes_client/<omraade>.py` med `class XClient: def __init__(self, session)`,
 læg selectors i `selectors.py`, tilføj `self.<omraade> = XClient(self.session)` i `OESClient`, og
 skriv `tests/test_<omraade>.py` med `oes`-fixturen.
+
+## Ændringer i 0.5.0
+
+- `OESClient(..., playwright=pw)` tager en valgfri, delt Playwright-instans, så
+  flere browserklienter kan køre i samme proces. Uden den opfører klienten sig
+  som før. Ingen brud på API'et.
 
 ## Ændringer i 0.4.0
 

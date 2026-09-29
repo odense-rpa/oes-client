@@ -38,14 +38,24 @@ class OESSession:
     logger = logging.getLogger(__name__)
 
     def __init__(
-        self, base_url: str, username: str, password: str, headless: bool = False
+        self,
+        base_url: str,
+        username: str,
+        password: str,
+        headless: bool = False,
+        playwright: Playwright | None = None,
     ):
+        """playwright: en delt Playwright-instans. Er den None, starter sessionen sin
+        egen og stopper den igen ved close(). En delt instans stoppes aldrig her.
+        // a shared Playwright instance. If None, the session starts and stops its own.
+        """
         self.base_url = base_url or "about:blank"
         self.username = username or ""
         self.password = password or ""
         self.headless = headless
 
-        self._playwright: Playwright | None = None
+        self._playwright: Playwright | None = playwright
+        self._ejer_playwright = playwright is None
         self._browser = None
         self._context: BrowserContext | None = None
         self._page: Page | None = None
@@ -92,7 +102,8 @@ class OESSession:
         if self._page is not None:
             return
 
-        self._playwright = sync_playwright().start()
+        if self._playwright is None:
+            self._playwright = sync_playwright().start()
         self._browser = self._playwright.chromium.launch(
             headless=self.headless,
             args=["--force-renderer-accessibility", "--new-window"],
@@ -135,7 +146,9 @@ class OESSession:
         if self._browser is not None:
             self._browser.close()
             self._browser = None
-        if self._playwright is not None:
+        # en delt Playwright-instans ejes af kalderen og stoppes ikke her
+        # // a shared Playwright instance is owned by the caller and not stopped here
+        if self._playwright is not None and self._ejer_playwright:
             self._playwright.stop()
             self._playwright = None
         self._page = None

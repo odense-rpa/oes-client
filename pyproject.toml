@@ -1,6 +1,6 @@
 [project]
 name = "oes-client"
-version = "0.4.0"
+version = "0.5.0"
 description = "Playwright-klient til ØS Indsigt"
 readme = "README.md"
 requires-python = ">=3.13"
