@@ -12,12 +12,14 @@ from .bilag_xml import parse_konteringslinjer
 from .brugere import BrugerClient
 from .client import OESClient
 from .exceptions import BilagIkkeFundet, OESFejl
+from .fakturaer import FakturaClient
 from .session import OESSession
 
 __all__ = [
     "BilagClient",
     "BilagIkkeFundet",
     "BrugerClient",
+    "FakturaClient",
     "OESClient",
     "OESFejl",
     "OESSession",

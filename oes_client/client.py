@@ -4,6 +4,7 @@ from playwright.sync_api import Playwright
 
 from .bilag import BilagClient
 from .brugere import BrugerClient
+from .fakturaer import FakturaClient
 from .session import OESSession
 
 
@@ -27,6 +28,7 @@ class OESClient:
         self.session = OESSession(base_url, username, password, headless, playwright)
         self.bilag = BilagClient(self.session)
         self.brugere = BrugerClient(self.session)
+        self.fakturaer = FakturaClient(self.session)
 
     def close(self) -> None:
         self.session.close()

@@ -9,6 +9,7 @@ Playwright-baseret Python-klient til OES (økonomi- og regnskabssystem) — give
 - Autentificering via Microsoft/Azure AD SSO med kommunalt brugernavn og adgangskode
 - **Brugere** (`oes.brugere`): søg bruger og spær bruger/fjern al adgang
 - **Bilag** (`oes.bilag`): søg, hent XML, konter, varemodtag og ret bemærkning på bilag
+- **Fakturaer** (`oes.fakturaer`): søg debitorfakturaer på et cpr-nummer
 - Understøtter brug som kontekst-manager (`with`-sætning)
 
 ## Installation
@@ -55,6 +56,19 @@ Port af Blue Prism objektet "ØS Indsigt (Chrome) VBO", som bruges af betalingsp
 - `varemodtag_bilag(bilagsid, cpr, kontonummer, posteringstekst, bemaerkning, b_skat)`
 - `varemodtag_bilag_konteret(bilagsid, bemaerkning)`
 - `aendre_bemaerkning(bilagsid, bemaerkning)`
+
+### Fakturaer (`oes.fakturaer`)
+
+Port af Blue Prism-handlingen "Søg fakturaer" (Regningsdebitor > Faktura, "Debitor posteringer"):
+
+- `soeg_fakturaer(cpr, art="258", bilagstype="Alle")` — finder alle fakturaer af en given art i alle
+  institutioner for et cpr-nummer (med eller uden bindestreg). Returnerer en liste af dicts med
+  `cpr`, `faktura_dato`, `fakturanr`, `rest_beloeb`, `forfaldsdato`, `type` ("Faktura" eller
+  "Kreditnota"), `art` og `institution`. Tom liste hvis ØS ingen posteringer har. Søgningen læser kun.
+
+```python
+fakturaer = oes.fakturaer.soeg_fakturaer("000000-0000")
+```
 
 Fejl: `OESFejl` for forretningsfejl fra ØS (fx valideringsfejl), `BilagIkkeFundet` når bilaget
 ikke findes. Playwright `TimeoutError` betyder, at ØS ikke svarede eller siden ikke så ud som

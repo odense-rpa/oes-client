@@ -64,3 +64,11 @@ def test_afdelingsnummer():
     if not afdelingsnummer:
         pytest.skip("TEST_AFDELINGSNUMMER er ikke sat")
     return afdelingsnummer
+
+
+@pytest.fixture
+def test_faktura_cpr():
+    cpr = os.getenv("TEST_FAKTURA_CPR")
+    if not cpr:
+        pytest.skip("TEST_FAKTURA_CPR er ikke sat")
+    return cpr

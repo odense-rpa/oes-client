@@ -221,3 +221,27 @@ class BilagSelectors:
 
     B_SKAT_LINJE = "select#idBskat_LKF_{n}"
     INSTITUTION = "#idInstitution_LKF_0"
+
+
+class FakturaFrames:
+    # fakturaoversigten (Regningsdebitor > Faktura, "Debitor posteringer")
+    # // invoice overview (Regningsdebitor > Faktura, "Debitor posteringer")
+    FAKTURAOVERSIGT = r"/os2000/regningsdebitor/faktura_oversigt\.jsp"
+    FAKTURAOVERSIGT_BTM = r"/os2000/regningsdebitor/faktura_oversigt_btm\.jsp"
+
+
+class FakturaSelectors:
+    # link til fakturaoversigten // route to the invoice overview
+    LINK = "regningsdebitor/faktura"
+
+    # institutionsvælger (fx "Alle institutioner") // institution selector
+    INSTITUTION = "select#idInstNrVis"
+    # bilagstype (Alle, Faktura, Kreditnota, Faktura/Kreditnota, Tilbagevendende)
+    BILAGSTYPE = "select#idBilagtype"
+    # søgetype for nummerfelterne (Art, Behandler, KMD Debitor, Fakturanr, Journal)
+    # // search type for the number fields
+    SOEGETYPE = "select#idNrType"
+    # debitor (cpr) fra - cpr uden bindestreg, 10 tegn // debtor (cpr) from, 10 digits
+    DEBITOR_FRA = "#idEnummerFra"
+    # art fra - bruges når søgetypen er Art // art from - used when search type is Art
+    ART_FRA = "#idBetArtFra"

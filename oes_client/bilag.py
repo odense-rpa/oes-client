@@ -186,38 +186,11 @@ class BilagClient:
             felt.select_option(index=0)  # tom b-skat // blank b-skat
 
     def _laes_tabel(self) -> list[list[str]]:
-        frame = self._session.frame_med(bs.RESULTAT_TABEL, timeout=10_000)
-        return frame.locator(bs.RESULTAT_TABEL).first.evaluate(
-            "t => Array.from(t.rows).map("
-            "r => Array.from(r.cells).map(c => c.innerText.trim()))"
-        )
+        return self._session.laes_resultattabel_side()
 
     def _hent_tabel(self) -> list[list[str]]:
         """Læser alle sider af resultatlisten // Reads all pages of the result list."""
-        try:
-            frame = self._session.frame_med(bs.SIDETALSVAELGER, timeout=5_000)
-        except TimeoutError:
-            fejl = " ".join(self._session.laes_fejlbeskeder())
-            if fejl and INGEN_RESULTATER not in fejl:
-                raise OESFejl(f"ØS fejl: {fejl}") from None
-            # uden sidetalsvælger kan der stadig være én side (verificeres live)
-            # // without the page selector there may still be a single page
-            if self._session.soeg_frame(bs.RESULTAT_TABEL) is None:
-                return []
-            return self._laes_tabel()
-
-        antal_sider = frame.locator(f"{bs.SIDETALSVAELGER} option").count()
-        raekker = []
-        for side in range(antal_sider):
-            raekker += self._laes_tabel()
-            if side < antal_sider - 1:
-                tabel = self._session.frame_med(bs.RESULTAT_TABEL).locator(
-                    bs.RESULTAT_TABEL
-                )
-                self._session.klik(bs.NAESTE_SIDE, bf.BTM)
-                self._session.vent_paa_genindlaesning(tabel.first, 30_000)
-                self._session.vent_paa_loading()
-        return raekker
+        return self._session.hent_resultattabel()
 
     # ------------------------------ Handlinger // Actions -----------------------------
 

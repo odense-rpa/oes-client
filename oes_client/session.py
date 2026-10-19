@@ -21,6 +21,7 @@ from playwright.sync_api import (
     sync_playwright,
 )
 
+from .exceptions import OESFejl
 from .selectors import BilagFrames as bf
 from .selectors import BilagSelectors as bs
 from .selectors import LoginSelectors as ls
@@ -272,3 +273,36 @@ class OESSession:
             return []
         tekster = frame.locator(bs.FEJLLISTE).first.locator("option").all_inner_texts()
         return [t.strip() for t in tekster if t.strip()]
+
+    def laes_resultattabel_side(self) -> list[list[str]]:
+        """Læser den viste side af resultattabellen som rækker af celletekster."""
+        frame = self.frame_med(bs.RESULTAT_TABEL, timeout=10_000)
+        return frame.locator(bs.RESULTAT_TABEL).first.evaluate(
+            "t => Array.from(t.rows).map("
+            "r => Array.from(r.cells).map(c => c.innerText.trim()))"
+        )
+
+    def hent_resultattabel(self) -> list[list[str]]:
+        """Læser alle sider af resultatlisten // Reads all pages of the result list."""
+        try:
+            frame = self.frame_med(bs.SIDETALSVAELGER, timeout=5_000)
+        except TimeoutError:
+            fejl = " ".join(self.laes_fejlbeskeder())
+            if fejl and INGEN_RESULTATER not in fejl:
+                raise OESFejl(f"ØS fejl: {fejl}") from None
+            # uden sidetalsvælger kan der stadig være én side (verificeres live)
+            # // without the page selector there may still be a single page
+            if self.soeg_frame(bs.RESULTAT_TABEL) is None:
+                return []
+            return self.laes_resultattabel_side()
+
+        antal_sider = frame.locator(f"{bs.SIDETALSVAELGER} option").count()
+        raekker = []
+        for side in range(antal_sider):
+            raekker += self.laes_resultattabel_side()
+            if side < antal_sider - 1:
+                tabel = self.frame_med(bs.RESULTAT_TABEL).locator(bs.RESULTAT_TABEL)
+                self.klik(bs.NAESTE_SIDE, bf.BTM)
+                self.vent_paa_genindlaesning(tabel.first, 30_000)
+                self.vent_paa_loading()
+        return raekker
