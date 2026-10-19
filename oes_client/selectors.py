@@ -228,6 +228,9 @@ class FakturaFrames:
     # // invoice overview (Regningsdebitor > Faktura, "Debitor posteringer")
     FAKTURAOVERSIGT = r"/os2000/regningsdebitor/faktura_oversigt\.jsp"
     FAKTURAOVERSIGT_BTM = r"/os2000/regningsdebitor/faktura_oversigt_btm\.jsp"
+    # opret/ret-siden for en faktura // create/edit page for an invoice
+    FAKTURADETALJER = r"/os2000/regningsdebitor/faktura_detaljer\.jsp"
+    FAKTURADETALJER_BTM = r"/os2000/regningsdebitor/faktura_detaljer_btm\.jsp"
 
 
 class FakturaSelectors:
@@ -245,3 +248,29 @@ class FakturaSelectors:
     DEBITOR_FRA = "#idEnummerFra"
     # art fra - bruges når søgetypen er Art // art from - used when search type is Art
     ART_FRA = "#idBetArtFra"
+
+    # ------------------------------ Opret faktura // Create invoice -------------------------
+
+    # institutionsnr der oprettes på, skrives på oversigten før "Opret" // institution to create on
+    INSTITUTIONSNR = "#idInstNrTemp"
+    # "Opret - Alt+1" i bundrammen på oversigten (ikonet øverst ved "Afgrænsning" opretter
+    # en søgeprofil og må IKKE bruges) // bottom-frame button; the icon next to "Afgrænsning"
+    # creates a search profile and must NOT be used
+    OPRET_KNAP = 'input[alt^="Opret - Alt+1"]'
+
+    # øverste del af opret-siden // top part of the create page
+    DEBITORTYPE = "select#idDebitorType"
+    DEBITOR = "#idEnummer"
+    DEBITORNAVN = "#iddebNavn"
+    FORFALDSDATO = "#idForfdato"
+    BETALINGSART = "#idBetart"
+    INTERN_TEKST = "#idInttext"
+    BEHANDLER_TLF = "#idBehandlertlf"
+
+    # fanen "Linjer" og første fakturalinje // the "Linjer" tab and the first invoice line
+    LINJER_FANE = "a:text-is('Linjer')"
+    VARENR = "#idVarenr0"
+    ANTAL = "#idAntal0"
+    VARETEKST = "#idText0"
+    # pris og kontonummer udfyldes af ØS ud fra varenummeret // price and account are filled by ØS
+    STYKPRIS = "#idStkpris0"

@@ -70,6 +70,11 @@ Port af Blue Prism-handlingen "Søg fakturaer" (Regningsdebitor > Faktura, "Debi
 fakturaer = oes.fakturaer.soeg_fakturaer("000000-0000")
 ```
 
+- `opret_faktura(cpr, varetekst, varenummer="401", antal=1, institution="281", art="258", ...)` — opretter
+  en faktura med én linje på et cpr-nummer (port af "Opret faktura-flyttebøde"). Pris og kontonummer
+  udfyldes af ØS ud fra varenummeret. Returnerer `True` når fakturaen er oprettet og `False` hvis ØS
+  melder, at den allerede findes. **Ændrer data i ØS.** Personen skal findes i ØS (ellers `OESFejl`).
+
 Fejl: `OESFejl` for forretningsfejl fra ØS (fx valideringsfejl), `BilagIkkeFundet` når bilaget
 ikke findes. Playwright `TimeoutError` betyder, at ØS ikke svarede eller siden ikke så ud som
 forventet.
