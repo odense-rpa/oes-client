@@ -110,6 +110,12 @@ Nyt område: opret `oes_client/<omraade>.py` med `class XClient: def __init__(se
 læg selectors i `selectors.py`, tilføj `self.<omraade> = XClient(self.session)` i `OESClient`, og
 skriv `tests/test_<omraade>.py` med `oes`-fixturen.
 
+## Ændringer i 0.6.1
+
+- Retter `opret_faktura`: ventede ikke på at ØS slog prisen op ud fra varenummeret, så
+  fakturaen kunne blive gemt med pris 0. Venter nu på en pris over 0 og rejser `OESFejl`
+  før Gem, hvis den udebliver. Ingen brud på API'et.
+
 ## Ændringer i 0.5.0
 
 - `OESClient(..., playwright=pw)` tager en valgfri, delt Playwright-instans, så
