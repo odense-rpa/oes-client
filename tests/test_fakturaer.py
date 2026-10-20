@@ -10,7 +10,12 @@ import pytest
 from playwright.sync_api import TimeoutError
 
 from oes_client import OESFejl
-from oes_client.fakturaer import FakturaClient, parse_fakturarader, udtraek_cpr
+from oes_client.fakturaer import (
+    FakturaClient,
+    _er_positivt_tal,
+    parse_fakturarader,
+    udtraek_cpr,
+)
 
 OVERSKRIFT = [
     "",
@@ -173,3 +178,24 @@ def test_gem_timeout_giver_oesfejl():
 
     with pytest.raises(OESFejl, match="kunne ikke oprette"):
         klient._gem(2)
+
+
+@pytest.mark.parametrize("tekst", ["650.00", "650,00", "1.950,00", "0,01"])
+def test_er_positivt_tal_ja(tekst):
+    assert _er_positivt_tal(tekst)
+
+
+@pytest.mark.parametrize("tekst", ["0,00", "0.00", "0", "", "abc"])
+def test_er_positivt_tal_nej(tekst):
+    assert not _er_positivt_tal(tekst)
+
+
+def test_vent_paa_vaerdi_ignorerer_nul_foer_prisen_kommer():
+    klient = _klient()
+    felt = MagicMock()
+    felt.input_value.side_effect = ["0,00", "0,00", "650.00"]
+    frame = MagicMock()
+    frame.locator.return_value = felt
+
+    assert klient._vent_paa_vaerdi(frame, "#pris", 5_000, kraev_positiv=True)
+    assert felt.input_value.call_count == 3

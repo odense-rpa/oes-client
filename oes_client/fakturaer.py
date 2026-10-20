@@ -67,6 +67,16 @@ def parse_fakturarader(raekker: list[list[str]]) -> list[dict]:
     return fakturaer
 
 
+def _er_positivt_tal(tekst: str) -> bool:
+    """Læser både "650.00" og "1.950,00" (dansk) og svarer, om tallet er over 0."""
+    if "," in tekst:
+        tekst = tekst.replace(".", "").replace(",", ".")
+    try:
+        return float(tekst) > 0
+    except ValueError:
+        return False
+
+
 def _ddmmyyyy(dato) -> str:
     return dato.strftime("%d%m%Y")
 
@@ -224,19 +234,27 @@ class FakturaClient:
         side.locator(fs.ANTAL).fill(str(antal))
         side.locator(fs.VARENR).fill(varenummer)
         side.locator(fs.VARENR).dispatch_event("change")
-        # ØS udfylder prisen ud fra varenummeret - uden pris ville fakturaen blive på 0 kr
-        # // ØS fills the price from the item number - without it the invoice would be 0
-        if not self._vent_paa_vaerdi(side, fs.STYKPRIS, 10_000):
+        # ØS udfylder prisen ud fra varenummeret - uden pris ville fakturaen blive på 0 kr.
+        # Feltet står på "0,00" fra start, så et tal er ikke nok: prisen skal være over 0
+        # // the field starts at "0,00", so any value is not enough: the price must be > 0
+        self._session.vent_paa_loading()
+        if not self._vent_paa_vaerdi(side, fs.STYKPRIS, 10_000, kraev_positiv=True):
             raise OESFejl(f"Varenummer {varenummer} gav ingen pris i ØS")
 
         # 4) gem
         return self._gem(maks_forsoeg)
 
-    def _vent_paa_vaerdi(self, frame, selector: str, timeout: float) -> bool:
-        """Venter på at et felt får en værdi (fx efter et opslag i ØS)."""
+    def _vent_paa_vaerdi(
+        self, frame, selector: str, timeout: float, kraev_positiv: bool = False
+    ) -> bool:
+        """Venter på at et felt får en værdi (fx efter et opslag i ØS).
+
+        Med kraev_positiv skal værdien være et tal over 0 ("0,00" tæller som tom).
+        """
         faerdig = time.monotonic() + timeout / 1000
         while True:
-            if frame.locator(selector).input_value().strip():
+            vaerdi = frame.locator(selector).input_value().strip()
+            if vaerdi and (not kraev_positiv or _er_positivt_tal(vaerdi)):
                 return True
             if time.monotonic() > faerdig:
                 return False
