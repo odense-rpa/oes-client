@@ -409,7 +409,7 @@ class BilagClient:
     def aendre_bemaerkning(self, bilagsid: str, bemaerkning: str) -> None:
         """Ændrer bemærkningen på et bilag og verificerer at den blev gemt."""
         bemaerkning = bemaerkning[:59]
-        frame = self._aabn_til_redigering(bilagsid, bogfoeres=True)
+        frame = self._aabn_til_redigering(bilagsid, behandles=True, bogfoeres=True)
         frame.locator(bs.BEMAERKNING).fill(bemaerkning)
         institution = frame.locator(bs.INSTITUTION)
         if institution.count() > 0:
