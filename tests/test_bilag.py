@@ -41,13 +41,12 @@ def test_find_bilag_ukendt(oes):
 def test_aendre_bemaerkning(oes, test_bilagsid):
     oes.bilag.aendre_bemaerkning(test_bilagsid, "Test af oes-client")
 
-
 @skriv
 def test_opret_konteringslinjer(oes):
     # bilaget skal have moms og en leverandør uden b-skat, og må ikke være varemodtaget.
     # Kan genbruges, da linjerne erstattes ved hver kørsel
     # // invoice needs moms, a supplier without b-skat, and must not be received
-    bilagsid = os.getenv("TEST_KONTERING_BILAGSID")
+    bilagsid = os.getenv("TEST_BILAGSID")
     kontonummer = os.getenv("TEST_KONTONUMMER")
     if not bilagsid or not kontonummer:
         pytest.skip("TEST_KONTERING_BILAGSID eller TEST_KONTONUMMER er ikke sat")

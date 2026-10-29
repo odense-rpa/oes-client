@@ -300,6 +300,8 @@ class BilagClient:
         linjer: dicts med nøglerne Cpr, Kontonummer, Posteringstekst, Beløb inkl moms
         og evt. B-skat. Uden B-skat beholdes ØS' forslag; "" fjerner b-skat. Summen af
         linjerne skal svare til bilagets beløb, ellers afviser ØS at gemme.
+        Højst 1000 linjer, både i linjer og på bilagets eksisterende konteringslinjer;
+        ellers rejses ValueError.
         """
         # behandles medtages, så et bilag med gemte linjer også findes ved genkørsel
         # // include behandles so an invoice with saved lines is found on retry
@@ -309,7 +311,27 @@ class BilagClient:
         # er skrivebeskyttede, så der slettes nedefra
         # // delete all lines but the first; only row 0 is editable, so delete from
         # the bottom
-        for _ in range(100):
+
+        max_linjer = 1000
+
+        if len(linjer) > max_linjer:
+            raise ValueError("For mange konteringslinjer der skal oprettes til vi kan håndtere det")
+
+        frame = self._session.frame_med(
+                        bs.BIDENT_LINJE.format(n=0), bf.EBILAG, 60_000
+                    )
+
+        raekker = frame.eval_on_selector_all(
+                        bs.SLET_LINJER,
+                        "as => as.map(a => +a.getAttribute('href').match(/_LKF_,(\\d+)/)[1])",
+                    )
+
+        linjer_til_slet = len(raekker)
+
+        if linjer_til_slet > max_linjer:
+            raise ValueError("For mange linjer der skal slettes på den eksisterende regning")
+
+        for _ in range(linjer_til_slet+1):
             frame = self._session.frame_med(
                 bs.BIDENT_LINJE.format(n=0), bf.EBILAG, 60_000
             )
