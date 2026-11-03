@@ -98,8 +98,9 @@ class BilagClient:
     def _find_bilag(self, bilagsid: str, rediger: bool = False, **status: bool) -> bool:
         """Fremsøger et bilag på bident og åbner det. Returnerer False hvis ikke fundet.
 
-        status: behandles, foranvises, konteret, bogfoeres, efteranvises, bogfoert,
-        sendte, kladde, inaktiveret. Alle er False som standard undtagen kladde.
+        status: ubehandlet, behandles, foranvises, konteret, bogfoeres, efteranvises,
+        bogfoert, sendte, kladde, inaktiveret. Alle er False som standard undtagen
+        kladde og ubehandlet.
         """
         ukendte = set(status) - set(bs.STATUS_CHECKBOXE)
         if ukendte:
@@ -117,7 +118,9 @@ class BilagClient:
             frame.locator(bs.REGNSKABSAAR_FRA).select_option(label=str(idag.year - 1))
 
         for navn, selector in bs.STATUS_CHECKBOXE.items():
-            frame.locator(selector).set_checked(status.get(navn, navn == "kladde"))
+            frame.locator(selector).set_checked(
+                status.get(navn, navn in ("kladde", "ubehandlet"))
+            )
 
         self._session.klik(bs.VIS_KNAP, bf.BILAGSOVERSIGT_BTM)
         self._session.vent_paa_loading()
@@ -203,8 +206,22 @@ class BilagClient:
         bilagsdato_til: date | None = None,
         maks_beloeb: float | None = None,
         cpr: str = "",
+        ubehandlet: bool = True,
+        behandles: bool = False,
+        foranvises: bool = False,
+        konteret: bool = False,
+        bogfoeres: bool = False,
+        efteranvises: bool = False,
+        bogfoert: bool = False,
+        sendte: bool = False,
+        kladde: bool = True,
+        inaktiveret: bool = False,
     ) -> list[dict]:
-        """Søger bilag på bilagsoversigten. Datoerne filtrerer på oprettet dato."""
+        """Søger bilag på bilagsoversigten. Datoerne filtrerer på oprettet dato.
+
+        Statusparametrene sætter bilagsstatus-checkboxene; kun ubehandlet og kladde
+        er True som standard, ligesom i systemet.
+        """
         if not afdelingsnummer or not regnskabsaar_fra or not regnskabsaar_til:
             raise ValueError(
                 "Der skal som minimum angives regnskabsår til og fra samt afdelingsnummer"
@@ -227,6 +244,20 @@ class BilagClient:
             (bs.DATO_TIL, bilagsdato_til),
         ):
             frame.locator(selector).fill(dato.strftime("%d%m%Y") if dato else "")
+        status = {
+            "ubehandlet": ubehandlet,
+            "behandles": behandles,
+            "foranvises": foranvises,
+            "konteret": konteret,
+            "bogfoeres": bogfoeres,
+            "efteranvises": efteranvises,
+            "bogfoert": bogfoert,
+            "sendte": sendte,
+            "kladde": kladde,
+            "inaktiveret": inaktiveret,
+        }
+        for navn, selector in bs.STATUS_CHECKBOXE.items():
+            frame.locator(selector).set_checked(status[navn])
 
         self._session.klik(bs.VIS_KNAP, bf.BILAGSOVERSIGT_BTM)
         self._session.vent_paa_loading()

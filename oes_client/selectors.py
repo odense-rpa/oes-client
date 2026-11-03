@@ -171,6 +171,7 @@ class BilagSelectors:
     # status checkboxe - navnene matcher ikke id'erne, mapping er fra Blue Prism
     # // status checkboxes - names do not match ids, mapping taken from Blue Prism
     STATUS_CHECKBOXE: ClassVar[dict[str, str]] = {
+        "ubehandlet": "#idFak_Ubehandlede",
         "behandles": "#idFak_Varemodtaget",
         "foranvises": "#idFak_Foranvises",
         "konteret": "#idFak_Konterede",

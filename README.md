@@ -49,7 +49,7 @@ with OESClient(base_url, username, password) as oes:
 
 Port af Blue Prism objektet "ØS Indsigt (Chrome) VBO", som bruges af betalingsprocesserne:
 
-- `udsoeg_bilag(regnskabsaar_fra, regnskabsaar_til, afdelingsnummer, ...)` — søg bilag på bilagsoversigten
+- `udsoeg_bilag(regnskabsaar_fra, regnskabsaar_til, afdelingsnummer, ...)` — søg bilag på bilagsoversigten; statusfiltre som bool-parametre (`ubehandlet` og `kladde` er `True`, øvrige `False` som standard)
 - `hent_bilags_xml(bilagsid)` — hent den originale faktura-XML (OIOUBL)
 - `parse_konteringslinjer(xml)` — udtræk fakturalinjer fra XML (kræver ingen browser)
 - `opret_konteringslinjer(bilagsid, linjer, bemaerkning)` — linjerne skal summe til bilagets beløb
@@ -109,6 +109,18 @@ Uden `playwright` (standard) starter og stopper klienten sin egen instans som hi
 Nyt område: opret `oes_client/<omraade>.py` med `class XClient: def __init__(self, session)`,
 læg selectors i `selectors.py`, tilføj `self.<omraade> = XClient(self.session)` i `OESClient`, og
 skriv `tests/test_<omraade>.py` med `oes`-fixturen.
+
+## Ændringer i 0.6.2
+
+- `udsoeg_bilag` tager bilagsstatus som bool-parametre (`ubehandlet`, `behandles`,
+  `foranvises`, `konteret`, `bogfoeres`, `efteranvises`, `bogfoert`, `sendte`, `kladde`,
+  `inaktiveret`). `ubehandlet` og `kladde` er `True` som standard, de øvrige `False`,
+  ligesom i systemet.
+- `opret_konteringslinjer` håndterer bilag med mere end 100 linjer (maks 1000).
+- `aendre_bemaerkning` kan også ændre bilag under behandling.
+- Playwright er låst til 1.54.0 for at matche produktion.
+
+Ingen brud på API'et.
 
 ## Ændringer i 0.6.1
 
