@@ -99,8 +99,8 @@ class BilagClient:
         """Fremsøger et bilag på bident og åbner det. Returnerer False hvis ikke fundet.
 
         status: ubehandlet, behandles, foranvises, konteret, bogfoeres, efteranvises,
-        bogfoert, sendte, kladde, inaktiveret. Alle er False som standard undtagen
-        kladde og ubehandlet.
+        bogfoert, sendte, kladde, varemodtaget, inaktiveret. Alle er False som
+        standard undtagen kladde, ubehandlet og varemodtaget.
         """
         ukendte = set(status) - set(bs.STATUS_CHECKBOXE)
         if ukendte:
@@ -119,7 +119,7 @@ class BilagClient:
 
         for navn, selector in bs.STATUS_CHECKBOXE.items():
             frame.locator(selector).set_checked(
-                status.get(navn, navn in ("kladde", "ubehandlet"))
+                status.get(navn, navn in ("kladde", "ubehandlet", "varemodtaget"))
             )
 
         self._session.klik(bs.VIS_KNAP, bf.BILAGSOVERSIGT_BTM)
@@ -215,12 +215,13 @@ class BilagClient:
         bogfoert: bool = False,
         sendte: bool = False,
         kladde: bool = True,
+        varemodtaget: bool = False,
         inaktiveret: bool = False,
     ) -> list[dict]:
         """Søger bilag på bilagsoversigten. Datoerne filtrerer på oprettet dato.
 
         Statusparametrene sætter bilagsstatus-checkboxene; kun ubehandlet og kladde
-        er True som standard, ligesom i systemet.
+        er True som standard.
         """
         if not afdelingsnummer or not regnskabsaar_fra or not regnskabsaar_til:
             raise ValueError(
@@ -254,6 +255,7 @@ class BilagClient:
             "bogfoert": bogfoert,
             "sendte": sendte,
             "kladde": kladde,
+            "varemodtaget": varemodtaget,
             "inaktiveret": inaktiveret,
         }
         for navn, selector in bs.STATUS_CHECKBOXE.items():

@@ -114,8 +114,8 @@ skriv `tests/test_<omraade>.py` med `oes`-fixturen.
 
 - `udsoeg_bilag` tager bilagsstatus som bool-parametre (`ubehandlet`, `behandles`,
   `foranvises`, `konteret`, `bogfoeres`, `efteranvises`, `bogfoert`, `sendte`, `kladde`,
-  `inaktiveret`). `ubehandlet` og `kladde` er `True` som standard, de øvrige `False`,
-  ligesom i systemet.
+  `varemodtaget`, `inaktiveret`). `ubehandlet` og `kladde` er `True` som standard, de
+  øvrige `False`.
 - `opret_konteringslinjer` håndterer bilag med mere end 100 linjer (maks 1000).
 - `aendre_bemaerkning` kan også ændre bilag under behandling.
 - Playwright er låst til 1.54.0 for at matche produktion.

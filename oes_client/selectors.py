@@ -180,6 +180,7 @@ class BilagSelectors:
         "bogfoert": "#idFak_Behandlede",
         "sendte": "#idFak_SendFejl",
         "kladde": "#idBes_Kladde",
+        "varemodtaget": "#idBes_Varemodt",
         "inaktiveret": "#idFak_Annulerede",
     }
 
