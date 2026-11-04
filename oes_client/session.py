@@ -25,6 +25,7 @@ from .exceptions import OESFejl
 from .selectors import BilagFrames as bf
 from .selectors import BilagSelectors as bs
 from .selectors import LoginSelectors as ls
+from .selectors import BrugereSelectors as bu
 
 # interval for polling af ØS // polling interval for ØS
 POLL_MS = 100
@@ -253,7 +254,7 @@ class OESSession:
             try:
                 self.page.goto(f"{self._root}/#/", wait_until="domcontentloaded")
                 i, frame = self.vent_paa_en_af(
-                    [(bs.SSO_KNAP, None), (bs.OPSAETNING_OVERSKRIFT, None)], 30_000
+                    [(bs.SSO_KNAP, None), (bs.OPSAETNING_OVERSKRIFT, None), (bu.BRUGERE_OVERSKRIFT, None)], 30_000
                 )
                 if i == 0:
                     frame.locator(bs.SSO_KNAP).first.click()

@@ -276,3 +276,6 @@ class FakturaSelectors:
     VARETEKST = "#idText0"
     # pris og kontonummer udfyldes af ØS ud fra varenummeret // price and account are filled by ØS
     STYKPRIS = "#idStkpris0"
+
+class BrugereSelectors:
+    BRUGERE_OVERSKRIFT = 'td.header:text-is("Brugere")'
