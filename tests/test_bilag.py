@@ -41,16 +41,8 @@ def test_find_bilag_ukendt(oes):
 def test_aendre_bemaerkning(oes, test_bilagsid):
     oes.bilag.aendre_bemaerkning(test_bilagsid, "Test af oes-client")
 
-@skriv
-def test_opret_konteringslinjer(oes):
-    # bilaget skal have moms og en leverandør uden b-skat, og må ikke være varemodtaget.
-    # Kan genbruges, da linjerne erstattes ved hver kørsel
-    # // invoice needs moms, a supplier without b-skat, and must not be received
-    bilagsid = os.getenv("TEST_BILAGSID")
-    kontonummer = os.getenv("TEST_KONTONUMMER")
-    if not bilagsid or not kontonummer:
-        pytest.skip("TEST_KONTERING_BILAGSID eller TEST_KONTONUMMER er ikke sat")
-
+def _test_linjer(oes, bilagsid: str, kontonummer: str) -> list[dict]:
+    """To linjer der summer til bilagets beløb inkl. moms."""
     # ØS kræver at linjerne summer til bilagets beløb inkl. moms
     # // ØS requires the lines to sum to the invoice total incl. moms
     xml = oes.bilag.hent_bilags_xml(bilagsid)
@@ -61,7 +53,7 @@ def test_opret_konteringslinjer(oes):
         2,
     )
     cpr = os.getenv("TEST_CPR", "")
-    linjer = [
+    return [
         {
             "Cpr": cpr,
             "Kontonummer": kontonummer,
@@ -75,20 +67,67 @@ def test_opret_konteringslinjer(oes):
             "Beløb inkl moms": -25.5,
         },
     ]
+
+
+def _test_linjer_100(oes, bilagsid: str, kontonummer: str) -> list[dict]:
+    """100 linjer der tilsammen summer til bilagets beløb inkl. moms."""
+    xml = oes.bilag.hent_bilags_xml(bilagsid)
+    # regnes i øre, så summen rammer præcist // computed in øre so the sum is exact
+    total_oere = round(
+        sum(
+            l["Amount"] + l["TaxAmount"] for l in oes.bilag.parse_konteringslinjer(xml)
+        )
+        * 100
+    )
+    antal = 100
+    beloeb_oere = [total_oere // antal] * antal
+    # rest på sidste linje // remainder on the last line
+    beloeb_oere[-1] += total_oere - sum(beloeb_oere)
+    cpr = os.getenv("TEST_CPR", "")
+    return [
+        {
+            "Cpr": cpr,
+            "Kontonummer": kontonummer,
+            "Posteringstekst": f"Test linje {n}",
+            "Beløb inkl moms": oere / 100,
+        }
+        for n, oere in enumerate(beloeb_oere, start=1)
+    ]
+
+
+@skriv
+def test_opret_konteringslinjer(oes):
+    # bilaget skal have moms og en leverandør uden b-skat, og må ikke være varemodtaget.
+    # Kan genbruges, da linjerne erstattes ved hver kørsel
+    # // invoice needs moms, a supplier without b-skat, and must not be received
+    bilagsid = os.getenv("TEST_BILAGSID")
+    kontonummer = os.getenv("TEST_KONTONUMMER")
+    if not bilagsid or not kontonummer:
+        pytest.skip("TEST_KONTERING_BILAGSID eller TEST_KONTONUMMER er ikke sat")
+
+    linjer = _test_linjer(oes, bilagsid, kontonummer)
     oes.bilag.opret_konteringslinjer(bilagsid, linjer, "Forberedt af test")
 
 
 @skriv
 def test_varemodtag_bilag(oes, test_bilagsid):
-    oes.bilag.varemodtag_bilag(
-        test_bilagsid,
-        cpr=os.getenv("TEST_CPR", ""),
-        kontonummer=os.getenv("TEST_KONTONUMMER", ""),
-        posteringstekst="Test",
-        bemaerkning="Behandlet af test",
-    )
+    oes.bilag.varemodtag_bilag(test_bilagsid, "Behandlet af test")
+
+
 
 
 @skriv
-def test_varemodtag_bilag_konteret(oes, test_bilagsid):
-    oes.bilag.varemodtag_bilag_konteret(test_bilagsid, "Behandlet af test")
+def test_opret_konteringslinjer_og_varemodtag(oes):
+    # varemodtagelse kan ikke gøres om, så bilaget kan kun bruges én gang
+    # // receiving cannot be undone, so the invoice can only be used once
+    kontonummer = os.getenv("TEST_KONTONUMMER")
+    if not kontonummer:
+        pytest.skip("TEST_KONTONUMMER er ikke sat")
+
+    bilagsid = ""
+
+    linjer = _test_linjer_100(oes, bilagsid, kontonummer)
+    oes.bilag.opret_konteringslinjer(bilagsid, linjer, "Forberedt af test")
+    # bilaget er stadig åbent, så varemodtag_bilag søger ikke igen
+    # // invoice is still open, so varemodtag_bilag skips the search
+    oes.bilag.varemodtag_bilag(bilagsid, "Behandlet af test")

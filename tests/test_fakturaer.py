@@ -130,18 +130,17 @@ def test_gem_lykkes_foerste_gang():
     klient._session.vent_paa_en_af.return_value = (0, MagicMock())  # Rediger vises
 
     assert klient._gem(2) is True
-    assert klient._session.klik.call_count == 1
-    # der ventes på genindlæsning efter klikket, ikke på den gamle Gem-knap
-    klient._session.vent_paa_genindlaesning.assert_called_once()
+    # der klikkes og ventes på genindlæsning i ét kald
+    klient._session.klik_og_vent_paa_genindlaesning.assert_called_once()
 
 
 def test_gem_trykker_ikke_igen_hvis_forrige_klik_nåede_at_gemme():
     klient = _klient()
-    klient._session.vent_paa_genindlaesning.side_effect = TimeoutError("langsom")
+    klient._session.klik_og_vent_paa_genindlaesning.side_effect = TimeoutError("langsom")
     klient._session.soeg_frame.return_value = MagicMock()  # Rediger vises nu
 
     assert klient._gem(2) is True
-    assert klient._session.klik.call_count == 1
+    assert klient._session.klik_og_vent_paa_genindlaesning.call_count == 1
 
 
 def test_gem_prover_igen_og_lykkes():
@@ -149,7 +148,7 @@ def test_gem_prover_igen_og_lykkes():
     klient._session.vent_paa_en_af.side_effect = [(1, MagicMock()), (0, MagicMock())]
 
     assert klient._gem(2) is True
-    assert klient._session.klik.call_count == 2
+    assert klient._session.klik_og_vent_paa_genindlaesning.call_count == 2
 
 
 def test_gem_findes_allerede_giver_false():
@@ -160,7 +159,7 @@ def test_gem_findes_allerede_giver_false():
     ]
 
     assert klient._gem(2) is False
-    assert klient._session.klik.call_count == 2
+    assert klient._session.klik_og_vent_paa_genindlaesning.call_count == 2
 
 
 def test_gem_anden_fejl_giver_oesfejl_med_besked():

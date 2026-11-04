@@ -139,10 +139,30 @@ class BilagClient:
             raise TimeoutError(f"Bilagsidentifikation kunne ikke findes. {fejl}")
 
         if rediger:
-            self._session.klik(bs.REDIGER_KNAP, bf.EBILAG_BTM)
-            self._session.frame_med(bs.GEM_KNAP, bf.EBILAG_BTM, timeout=30_000)
-            self._session.vent_paa_loading()
+            self._rediger()
         return True
+
+    def _rediger(self) -> None:
+        self._session.klik(bs.REDIGER_KNAP, bf.EBILAG_BTM)
+        try:
+            self._session.frame_med(bs.GEM_KNAP, bf.EBILAG_BTM, timeout=30_000)
+        except TimeoutError:
+            fejl = " ".join(self._session.laes_fejlbeskeder())
+            raise TimeoutError(
+                f"ØS åbnede ikke bilaget til redigering. {fejl}".strip()
+            ) from None
+        self._session.vent_paa_loading()
+
+    def _bilag_er_aabent(self, bilagsid: str) -> bool:
+        """Om bilaget allerede er åbent i ØS // Whether the invoice is already open."""
+        return (
+            self._session.soeg_frame(
+                bs.BILAGSIDENTIFIKATION,
+                bf.EBILAG,
+                has_text=re.compile(rf"^\s*{re.escape(bilagsid)}\b"),
+            )
+            is not None
+        )
 
     def _aabn_til_redigering(self, bilagsid: str, **status: bool) -> Frame:
         if not self._find_bilag(bilagsid, rediger=True, **status):
@@ -150,22 +170,41 @@ class BilagClient:
         return self._session.frame_med(bs.BEMAERKNING, bf.EBILAG)
 
     def _gem(self, forventet_knap: str) -> None:
-        """Trykker Gem og venter på at forventet_knap (fx Rediger) kommer frem."""
-        for _ in range(3):
-            gem = self._session.klik(bs.GEM_KNAP, bf.EBILAG_BTM)
+        """Trykker Gem og venter på at forventet_knap (fx Rediger) eller ØS' besked
+        "E-bilag gemt" kommer frem."""
+        # indeks 0 og 1 = gemt, 2 = Gem vises igen (afvist)
+        # // index 0 and 1 = saved, 2 = Gem shown again (refused)
+        muligheder = [
+            (forventet_knap, bf.EBILAG_BTM),
+            (bs.GEMT_BESKED, None),
+            (bs.GEM_KNAP, bf.EBILAG_BTM),
+        ]
+        for forsoeg in range(3):
+            if forsoeg:
+                # den forrige Gem kan stadig være i gang - vent på resultatet før der
+                # trykkes igen // the previous Gem may still be running - wait for its
+                # result before retrying
+                try:
+                    i, _ = self._session.vent_paa_en_af(muligheder, 30_000)
+                except TimeoutError:
+                    break
+                if i in (0, 1):
+                    return  # den forrige Gem nåede at gemme // the previous Gem saved
+            gem = (
+                self._session.frame_med(bs.GEM_KNAP, bf.EBILAG_BTM)
+                .locator(bs.GEM_KNAP)
+                .first
+            )
             try:
-                self._session.vent_paa_genindlaesning(gem, 30_000)
+                self._session.klik_og_vent_paa_genindlaesning(gem, 30_000)
             except TimeoutError:
                 continue
             self._session.vent_paa_loading()
             try:
-                i, _ = self._session.vent_paa_en_af(
-                    [(forventet_knap, bf.EBILAG_BTM), (bs.GEM_KNAP, bf.EBILAG_BTM)],
-                    10_000,
-                )
+                i, _ = self._session.vent_paa_en_af(muligheder, 10_000)
             except TimeoutError:
                 continue
-            if i == 0:
+            if i in (0, 1):
                 return
         fejl = "\n".join(self._session.laes_fejlbeskeder())
         raise OESFejl(f"Fejl kunne ikke gemme\n{fejl}")
@@ -325,14 +364,13 @@ class BilagClient:
             raise OESFejl(f"Kunne ikke hente xml ({svar.status}): {href}")
         return svar.text()
 
-    def opret_konteringslinjer(
-        self, bilagsid: str, linjer: list[dict], bemaerkning: str = ""
-    ) -> None:
+    def opret_konteringslinjer(self, bilagsid: str, linjer: list[dict], bemaerkning: str = "") -> None:
         """Erstatter bilagets konteringslinjer og gemmer.
 
         linjer: dicts med nøglerne Cpr, Kontonummer, Posteringstekst, Beløb inkl moms
-        og evt. B-skat. Uden B-skat beholdes ØS' forslag; "" fjerner b-skat. Summen af
-        linjerne skal svare til bilagets beløb, ellers afviser ØS at gemme.
+        og evt. B-skat. B-skat angives som teksten i listen, fx "1: B-skat m/AM-bidrag";
+        "" fjerner b-skat, og uden nøglen beholdes ØS' forslag. Summen af linjerne skal
+        svare til bilagets beløb, ellers afviser ØS at gemme.
         Højst 1000 linjer, både i linjer og på bilagets eksisterende konteringslinjer;
         ellers rejses ValueError.
         """
@@ -375,9 +413,11 @@ class BilagClient:
             sidste = max(raekker, default=0)
             if sidste == 0:
                 break
-            anker = frame.locator(bs.BIDENT_LINJE.format(n=0))
-            frame.locator(bs.SLET_LINJE.format(n=sidste)).first.click()
-            self._session.vent_paa_genindlaesning(anker, 60_000)
+            self._session.klik_og_vent_paa_genindlaesning(
+                frame.locator(bs.SLET_LINJE.format(n=sidste)).first,
+                60_000,
+                anker=frame.locator(bs.BIDENT_LINJE.format(n=0)),
+            )
         else:
             raise OESFejl("Fejl ved sletning af rækker")
 
@@ -407,9 +447,11 @@ class BilagClient:
                 # rækker bliver skrivebeskyttede, så kun den aktuelle række har felter
                 # // add after the last row; ØS validates and refuses on errors.
                 # Earlier rows become read-only, so only the current row has inputs
-                anker = frame.locator(bs.BIDENT_LINJE.format(n=n))
-                frame.locator(bs.TILFOEJ_LINJE.format(n=n)).first.click()
-                self._session.vent_paa_genindlaesning(anker, 60_000)
+                self._session.klik_og_vent_paa_genindlaesning(
+                    frame.locator(bs.TILFOEJ_LINJE.format(n=n)).first,
+                    60_000,
+                    anker=frame.locator(bs.BIDENT_LINJE.format(n=n)),
+                )
                 # ny række = tilføjet; aktuel række stadig redigerbar = afvist af ØS
                 # // new row = added; current row still editable = refused by ØS
                 i, _ = self._session.vent_paa_en_af(
@@ -429,35 +471,25 @@ class BilagClient:
             ).fill(bemaerkning)
         self._gem(bs.REDIGER_KNAP)
 
-    def varemodtag_bilag(
-        self,
-        bilagsid: str,
-        cpr: str,
-        kontonummer: str,
-        posteringstekst: str,
-        bemaerkning: str,
-        b_skat: str = "",
-    ) -> None:
-        """Udfylder første konteringslinje, gemmer og varemodtager bilaget."""
-        frame = self._aabn_til_redigering(bilagsid, bogfoeres=True)
-        frame.locator(bs.BEMAERKNING).fill(bemaerkning[:60])
-        frame.locator(bs.CPR_LINJE.format(n=0)).fill(cpr)
-        frame.locator(bs.KONTONR_LINJE.format(n=0)).fill(kontonummer)
-        frame.locator(bs.POSTERINGSTEKST_LINJE.format(n=0)).fill(posteringstekst[:40])
-        frame.locator(bs.INSTITUTION).fill("")
+    def varemodtag_bilag(self, bilagsid: str, bemaerkning: str = "") -> None:
+        """Skriver evt. bemærkning, gemmer og varemodtager bilaget.
 
-        self._saet_b_skat(frame.locator(bs.B_SKAT_LINJE.format(n=0)), b_skat)
-
-        self._gem(bs.VAREMODTAG_KNAP)
-        self._varemodtag()
-
-    def varemodtag_bilag_konteret(self, bilagsid: str, bemaerkning: str = "") -> None:
-        """Varemodtager et bilag der allerede har konteringslinjer."""
-        frame = self._aabn_til_redigering(
-            bilagsid, behandles=True, konteret=True, bogfoeres=True
-        )
+        Opretter ikke konteringslinjer - brug opret_konteringslinjer først. Er bilaget
+        allerede åbent (fx lige efter opret_konteringslinjer), bruges det uden ny søgning.
+        """
+        if self._bilag_er_aabent(bilagsid):
+            # bilaget er allerede åbent (fx efter opret_konteringslinjer) - spring
+            # søgning over // invoice already open (e.g. after opret_konteringslinjer)
+            # - skip the search
+            if self._session.soeg_frame(bs.GEM_KNAP, bf.EBILAG_BTM) is None:
+                self._rediger()
+            frame = self._session.frame_med(bs.BEMAERKNING, bf.EBILAG)
+        else:
+            frame = self._aabn_til_redigering(
+                bilagsid, behandles=True, konteret=True, bogfoeres=True
+            )
         if bemaerkning:
-            frame.locator(bs.BEMAERKNING).fill(bemaerkning)
+            frame.locator(bs.BEMAERKNING).fill(bemaerkning[:60])
         self._gem(bs.VAREMODTAG_KNAP)
         self._varemodtag()
 

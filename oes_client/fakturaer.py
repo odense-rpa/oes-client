@@ -265,11 +265,11 @@ class FakturaClient:
         for forsoeg in range(maks_forsoeg):
             if forsoeg and self._session.soeg_frame(bs.REDIGER_KNAP, bf.BTM):
                 return True  # den forrige Gem nåede at gemme
-            gem = self._session.klik(bs.GEM_KNAP, bf.BTM)
+            gem = self._session.frame_med(bs.GEM_KNAP, bf.BTM).locator(bs.GEM_KNAP).first
             # den gamle Gem-knap står på siden lidt endnu - vent til ØS har genindlæst
             # // the old Gem button stays on the page for a moment - wait for ØS to reload
             try:
-                self._session.vent_paa_genindlaesning(gem, 30_000)
+                self._session.klik_og_vent_paa_genindlaesning(gem, 30_000)
             except TimeoutError:
                 continue
             self._session.vent_paa_loading()

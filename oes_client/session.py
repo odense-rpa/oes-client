@@ -219,9 +219,17 @@ class OESSession:
         knap.click()
         return knap
 
-    def vent_paa_genindlaesning(self, locator: Locator, timeout: float) -> None:
-        """Venter til elementet er fjernet fra DOM'en, fx fordi framen genindlæses."""
-        handle = locator.element_handle()
+    def klik_og_vent_paa_genindlaesning(
+        self, knap: Locator, timeout: float, anker: Locator | None = None
+    ) -> None:
+        """Klikker knap og venter til anker (standard: knap) er fjernet fra DOM'en, fx
+        fordi framen genindlæses. Ankeret hentes før klikket, så et hurtigt genindlæst
+        element ikke forveksles med det gamle.
+        // Clicks knap and waits until anker (default: knap) is detached. The anchor is
+        resolved before the click so a quickly reloaded element isn't mistaken for it.
+        """
+        handle = (anker or knap).element_handle()
+        knap.click()
         deadline = time.monotonic() + timeout / 1000
         while time.monotonic() < deadline:
             try:
@@ -303,7 +311,9 @@ class OESSession:
             raekker += self.laes_resultattabel_side()
             if side < antal_sider - 1:
                 tabel = self.frame_med(bs.RESULTAT_TABEL).locator(bs.RESULTAT_TABEL)
-                self.klik(bs.NAESTE_SIDE, bf.BTM)
-                self.vent_paa_genindlaesning(tabel.first, 30_000)
+                naeste = self.frame_med(bs.NAESTE_SIDE, bf.BTM).locator(bs.NAESTE_SIDE)
+                self.klik_og_vent_paa_genindlaesning(
+                    naeste.first, 30_000, anker=tabel.first
+                )
                 self.vent_paa_loading()
         return raekker

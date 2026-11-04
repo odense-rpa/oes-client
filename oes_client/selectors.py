@@ -204,6 +204,8 @@ class BilagSelectors:
     XML_LINK = 'a:has-text("Klik her for at åbne xml")'
 
     BEMAERKNING = "#idBemaerkning"
+    # besked efter vellykket gem // message shown after a successful save
+    GEMT_BESKED = 'td:text-is("E-Bilaget er gemt")'
     # gemt bemærkning i visningstilstand // saved remark in view mode (skal verificeres live)
     BEMAERKNING_VIS = "td.infocellwrap"
 

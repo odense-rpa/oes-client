@@ -53,8 +53,7 @@ Port af Blue Prism objektet "ØS Indsigt (Chrome) VBO", som bruges af betalingsp
 - `hent_bilags_xml(bilagsid)` — hent den originale faktura-XML (OIOUBL)
 - `parse_konteringslinjer(xml)` — udtræk fakturalinjer fra XML (kræver ingen browser)
 - `opret_konteringslinjer(bilagsid, linjer, bemaerkning)` — linjerne skal summe til bilagets beløb
-- `varemodtag_bilag(bilagsid, cpr, kontonummer, posteringstekst, bemaerkning, b_skat)`
-- `varemodtag_bilag_konteret(bilagsid, bemaerkning)`
+- `varemodtag_bilag(bilagsid, bemaerkning)` — skriver bemærkning og varemodtager; konteringslinjer oprettes med `opret_konteringslinjer`
 - `aendre_bemaerkning(bilagsid, bemaerkning)`
 
 ### Fakturaer (`oes.fakturaer`)
@@ -110,7 +109,7 @@ Nyt område: opret `oes_client/<omraade>.py` med `class XClient: def __init__(se
 læg selectors i `selectors.py`, tilføj `self.<omraade> = XClient(self.session)` i `OESClient`, og
 skriv `tests/test_<omraade>.py` med `oes`-fixturen.
 
-## Ændringer i 0.6.2
+## Ændringer i 0.6.4
 
 - `udsoeg_bilag` tager bilagsstatus som bool-parametre (`ubehandlet`, `behandles`,
   `foranvises`, `konteret`, `bogfoeres`, `efteranvises`, `bogfoert`, `sendte`, `kladde`,
@@ -119,8 +118,15 @@ skriv `tests/test_<omraade>.py` med `oes`-fixturen.
 - `opret_konteringslinjer` håndterer bilag med mere end 100 linjer (maks 1000).
 - `aendre_bemaerkning` kan også ændre bilag under behandling.
 - Playwright er låst til 1.54.0 for at matche produktion.
-
-Ingen brud på API'et.
+- `varemodtag_bilag(bilagsid, bemaerkning)` skriver kun bemærkning og varemodtager.
+  Konteringslinjer (inkl. b-skat) oprettes med `opret_konteringslinjer`.
+- `varemodtag_bilag_konteret` er fjernet - brug `varemodtag_bilag`.
+- `varemodtag_bilag` bruger bilaget direkte, hvis det allerede er åbent (fx lige efter
+  `opret_konteringslinjer`), i stedet for at søge det frem igen.
+- Gem registrerer nu et gem, der lykkedes, også når ØS er langsom eller kun viser
+  "E-Bilaget er gemt". Retter fejlen "Fandt ikke 'input[alt^="Gem - Alt+2"]'".
+- Ventetiden på genindlæsning efter klik gav timeout, selvom siden var indlæst.
+  `OESSession.vent_paa_genindlaesning` er erstattet af `klik_og_vent_paa_genindlaesning`.
 
 ## Ændringer i 0.6.1
 
