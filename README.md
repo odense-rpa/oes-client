@@ -99,13 +99,13 @@ Uden `playwright` (standard) starter og stopper klienten sin egen instans som hi
 ### Fejlsøgning af en proces der hænger
 
 ```python
-with OESClient(base_url, username, password, hang_dump_sekunder=600) as oes:
+with OESClient(base_url, username, password, hang_dump_sekunder=300) as oes:
     ...
 ```
 
-Sker der ingen ny navigation i 600 sekunder, skriver Python stacktrace for alle tråde til
-stderr (og igen hvert 600. sekund). Processen kører videre. Stacktracen viser hvilken linje
-i `oes_client` den hænger i.
+Sker der ingen navigation eller genindlæsning af en side i 300 sekunder, skriver Python
+stacktrace for alle tråde til stderr (og igen hvert 300. sekund). Processen kører videre.
+Stacktracen viser hvilken linje i `oes_client` den hænger i.
 
 ## Arkitektur
 
@@ -119,6 +119,14 @@ i `oes_client` den hænger i.
 Nyt område: opret `oes_client/<omraade>.py` med `class XClient: def __init__(self, session)`,
 læg selectors i `selectors.py`, tilføj `self.<omraade> = XClient(self.session)` i `OESClient`, og
 skriv `tests/test_<omraade>.py` med `oes`-fixturen.
+
+## Ændringer i 0.6.5
+
+- `slet_bruger` kunne hænge uendeligt, hvis en adgangsgruppe ikke blev slettet. Prøver
+  nu højst 5 gange og rejser derefter `OESFejl`.
+- Ny valgfri parameter `OESClient(..., hang_dump_sekunder=300)`: sker der ingen
+  navigation eller genindlæsning i så mange sekunder, skrives en stacktrace til stderr,
+  så man kan se hvor processen hænger. Ingen brud på API'et.
 
 ## Ændringer i 0.6.4
 

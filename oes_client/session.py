@@ -53,11 +53,11 @@ class OESSession:
         egen og stopper den igen ved close(). En delt instans stoppes aldrig her.
         // a shared Playwright instance. If None, the session starts and stops its own.
 
-        hang_dump_sekunder: sker der ingen navigation i så mange sekunder, skrives
-        stacktrace for alle tråde til stderr (processen kører videre). faulthandler har
-        ét ur pr. proces, så med flere sessioner gælder det seneste kald.
-        // if no navigation happens for this many seconds, all thread stacks are written
-        to stderr (the process keeps running). One timer per process.
+        hang_dump_sekunder: sker der ingen navigation eller genindlæsning i så mange
+        sekunder, skrives stacktrace for alle tråde til stderr (processen kører videre).
+        faulthandler har ét ur pr. proces, så med flere sessioner gælder det seneste kald.
+        // if no navigation or reload happens for this many seconds, all thread stacks
+        are written to stderr (the process keeps running). One timer per process.
         """
         self.base_url = base_url or "about:blank"
         self.username = username or ""
@@ -251,8 +251,10 @@ class OESSession:
         while time.monotonic() < deadline:
             try:
                 if not handle.evaluate("e => e.isConnected"):
+                    self._nulstil_hang_dump()
                     return
             except Error:
+                self._nulstil_hang_dump()
                 return  # framen er genindlæst // frame reloaded
             self.page.wait_for_timeout(POLL_MS)
         raise TimeoutError("ØS genindlæste ikke siden")
