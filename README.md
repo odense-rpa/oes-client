@@ -96,6 +96,17 @@ with sync_playwright() as pw:
 
 Uden `playwright` (standard) starter og stopper klienten sin egen instans som hidtil.
 
+### Fejlsøgning af en proces der hænger
+
+```python
+with OESClient(base_url, username, password, hang_dump_sekunder=600) as oes:
+    ...
+```
+
+Sker der ingen ny navigation i 600 sekunder, skriver Python stacktrace for alle tråde til
+stderr (og igen hvert 600. sekund). Processen kører videre. Stacktracen viser hvilken linje
+i `oes_client` den hænger i.
+
 ## Arkitektur
 
 - `OESSession` (`session.py`) ejer browseren, login og de fælles hjælpere: frames, ventetider,

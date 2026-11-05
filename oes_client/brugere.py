@@ -95,11 +95,17 @@ class BrugerClient:
         if betaling_godkendt_box.is_checked():
             betaling_godkendt_box.click()
 
-        self._frame.locator(oss.ADGANGSGRUPPE_TABLE)
+        # højst 5 forsøg, så løkken ikke kører uendeligt hvis rækken ikke forsvinder
+        # // at most 5 attempts so the loop can't run forever if the row stays
         adgangsgruppe_slet_raekke = self._frame.locator(oss.ADGANGSGRUPPE_TABLE_SLET)
-        while adgangsgruppe_slet_raekke.count() > 0:
-            adgangsgruppe_slet_raekke.click()
+        for _ in range(5):
+            if adgangsgruppe_slet_raekke.count() == 0:
+                break
+            adgangsgruppe_slet_raekke.first.click()
             self._page.wait_for_timeout(2000)
+        else:
+            if adgangsgruppe_slet_raekke.count() > 0:
+                raise OESFejl("Kunne ikke slette adgangsgrupper")
 
     def _slet_i_afdeling_fane(self):
         self._frame.click(oss.AFDELING_FANE)

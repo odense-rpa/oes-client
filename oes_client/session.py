@@ -4,6 +4,7 @@ OESSession ejer browseren, login og de fælles hjælpere (frames, ventetider, na
 fejlbeskeder), som områdeklienterne (bilag, brugere, ...) bruger.
 """
 
+import faulthandler
 import logging
 import re
 import time
@@ -46,10 +47,17 @@ class OESSession:
         password: str,
         headless: bool = False,
         playwright: Playwright | None = None,
+        hang_dump_sekunder: int | None = None,
     ):
         """playwright: en delt Playwright-instans. Er den None, starter sessionen sin
         egen og stopper den igen ved close(). En delt instans stoppes aldrig her.
         // a shared Playwright instance. If None, the session starts and stops its own.
+
+        hang_dump_sekunder: sker der ingen navigation i så mange sekunder, skrives
+        stacktrace for alle tråde til stderr (processen kører videre). faulthandler har
+        ét ur pr. proces, så med flere sessioner gælder det seneste kald.
+        // if no navigation happens for this many seconds, all thread stacks are written
+        to stderr (the process keeps running). One timer per process.
         """
         self.base_url = base_url or "about:blank"
         self.username = username or ""
@@ -62,6 +70,8 @@ class OESSession:
         self._context: BrowserContext | None = None
         self._page: Page | None = None
         self._root = self._mod_core_root(self.base_url)
+        self._hang_dump_sekunder = hang_dump_sekunder
+        self._nulstil_hang_dump()
 
         # ryd op hvis login fejler, så Playwright ikke efterlades kørende
         # // clean up if login fails so Playwright is not left running
@@ -141,7 +151,14 @@ class OESSession:
             self.logger.error(f"[login] Failed: {e}")
             raise
 
+    def _nulstil_hang_dump(self) -> None:
+        """Genstarter uret for hang-dump // Restarts the hang dump timer."""
+        if self._hang_dump_sekunder:
+            faulthandler.dump_traceback_later(self._hang_dump_sekunder, repeat=True)
+
     def close(self) -> None:
+        if self._hang_dump_sekunder:
+            faulthandler.cancel_dump_traceback_later()
         if self._context is not None:
             self._context.close()
             self._context = None
@@ -258,6 +275,7 @@ class OESSession:
 
     def naviger(self, link: str) -> None:
         """Går til startsiden, logger ind via SSO hvis nødvendigt, og derefter til link."""
+        self._nulstil_hang_dump()
         for forsoeg in range(3):
             try:
                 self.page.goto(f"{self._root}/#/", wait_until="domcontentloaded")
