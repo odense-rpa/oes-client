@@ -22,6 +22,12 @@ def _foerste(element: ET.Element | None, navn: str) -> ET.Element | None:
     return None
 
 
+def _boern(element: ET.Element, navn: str) -> list[ET.Element]:
+    # direkte børn (ikke efterkommere) med givent navn
+    # // direct children (not descendants) with the given name
+    return [e for e in element if _localname(e) == navn]
+
+
 def _tekst(element: ET.Element | None) -> str:
     # samlet tekst for hele undertræet, som .Value i C#
     # // concatenated text of the whole subtree, like .Value in C#
@@ -33,11 +39,33 @@ def _tal(element: ET.Element | None) -> float:
     return float(tekst) if tekst else 0.0
 
 
+def _momsbeloeb(line: ET.Element) -> float:
+    """Linjens moms. Har linjen flere TaxTotal, vælges det TaxAmount der ligger
+    tættest på LineExtensionAmount * Percent / 100. Ellers som før: første
+    TaxAmount i linjen, eller 0.0.
+    // The line's VAT. With several TaxTotals, pick the TaxAmount closest to
+    LineExtensionAmount * Percent / 100. Otherwise as before.
+    """
+    # TaxAmount direkte under hver TaxTotal - ikke TaxSubtotal'ens
+    # // TaxAmount directly under each TaxTotal - not the TaxSubtotal's
+    kandidater = [
+        _tal(beloeb)
+        for total in _boern(line, "taxtotal")
+        for beloeb in _boern(total, "taxamount")[:1]
+    ]
+    procent = _foerste(line, "percent")
+    if len(kandidater) > 1 and _tekst(procent).strip():
+        forventet = _tal(_foerste(line, "lineextensionamount")) * _tal(procent) / 100
+        return min(kandidater, key=lambda b: abs(b - forventet))
+    return _tal(_foerste(line, "taxamount"))
+
+
 def parse_konteringslinjer(xml: str) -> list[dict]:
     """Returnerer én dict pr. InvoiceLine i bilags-XML'en.
 
     Nøgler: Id, Amount, Name, Description, Note, DeliveryParty, PartyLegalEntity,
     TaxAmount. Beløb er med decimalpunktum i XML'en.
+    TaxAmount: se _momsbeloeb (linjer med flere TaxTotal).
     """
     root = ET.fromstring(xml.encode("utf-8") if isinstance(xml, str) else xml)
     linjer = []
@@ -55,7 +83,7 @@ def parse_konteringslinjer(xml: str) -> list[dict]:
                 "Note": _tekst(_foerste(line, "note")) if item is not None else "",
                 "DeliveryParty": _tekst(_foerste(deliveryparty, "partyidentification")),
                 "PartyLegalEntity": _tekst(_foerste(deliveryparty, "partylegalentity")),
-                "TaxAmount": _tal(_foerste(line, "taxamount")),
+                "TaxAmount": _momsbeloeb(line),
             }
         )
     return linjer
