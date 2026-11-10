@@ -22,7 +22,7 @@ class OESClient:
         base_url: str,
         username: str,
         password: str,
-        headless: bool = False,
+        headless: bool = True,
         playwright: Playwright | None = None,
     ):
         self.session = OESSession(base_url, username, password, headless, playwright)

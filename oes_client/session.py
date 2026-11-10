@@ -48,7 +48,7 @@ class OESSession:
         base_url: str,
         username: str,
         password: str,
-        headless: bool = False,
+        headless: bool = True,
         playwright: Playwright | None = None,
     ):
         """playwright: en delt Playwright-instans. Er den None, starter sessionen sin
