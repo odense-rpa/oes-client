@@ -99,12 +99,12 @@ class BrugerClient:
         # // at most 5 attempts so the loop can't run forever if the row stays
         adgangsgruppe_slet_raekke = self._frame.locator(oss.ADGANGSGRUPPE_TABLE_SLET)
         for _ in range(5):
-            if adgangsgruppe_slet_raekke.count() == 0:
+            if not self._session.findes(adgangsgruppe_slet_raekke):
                 break
             adgangsgruppe_slet_raekke.first.click()
             self._page.wait_for_timeout(2000)
         else:
-            if adgangsgruppe_slet_raekke.count() > 0:
+            if self._session.findes(adgangsgruppe_slet_raekke):
                 raise OESFejl("Kunne ikke slette adgangsgrupper")
 
     def _slet_i_afdeling_fane(self):

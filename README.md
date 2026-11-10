@@ -96,17 +96,6 @@ with sync_playwright() as pw:
 
 Uden `playwright` (standard) starter og stopper klienten sin egen instans som hidtil.
 
-### Fejlsøgning af en proces der hænger
-
-```python
-with OESClient(base_url, username, password, hang_dump_sekunder=300) as oes:
-    ...
-```
-
-Sker der ingen navigation eller genindlæsning af en side i 300 sekunder, skriver Python
-stacktrace for alle tråde til stderr (og igen hvert 300. sekund). Processen kører videre.
-Stacktracen viser hvilken linje i `oes_client` den hænger i.
-
 ## Arkitektur
 
 - `OESSession` (`session.py`) ejer browseren, login og de fælles hjælpere: frames, ventetider,
@@ -119,6 +108,15 @@ Stacktracen viser hvilken linje i `oes_client` den hænger i.
 Nyt område: opret `oes_client/<omraade>.py` med `class XClient: def __init__(self, session)`,
 læg selectors i `selectors.py`, tilføj `self.<omraade> = XClient(self.session)` i `OESClient`, og
 skriv `tests/test_<omraade>.py` med `oes`-fixturen.
+
+## Ændringer i 0.6.6
+
+- `parse_konteringslinjer` vælger den rigtige moms på linjer med flere `TaxTotal`
+  (det `TaxAmount` der ligger tættest på `LineExtensionAmount * Percent / 100`).
+  Linjer med én eller ingen `TaxTotal` er uændrede.
+- Processen kunne hænge uden fejl, når en ØS-side ikke blev færdig med at loade.
+  Alle opslag i siden har nu en tidsgrænse, så den i stedet fejler med `TimeoutError`.
+- `hang_dump_sekunder` er fjernet fra `OESClient` - fjern argumentet, hvis det bruges.
 
 ## Ændringer i 0.6.5
 

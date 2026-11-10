@@ -124,7 +124,7 @@ def test_opret_konteringslinjer_og_varemodtag(oes):
     if not kontonummer:
         pytest.skip("TEST_KONTONUMMER er ikke sat")
 
-    bilagsid = ""
+    bilagsid = str(os.getenv("TEST_BILAGSID"))
 
     linjer = _test_linjer_100(oes, bilagsid, kontonummer)
     oes.bilag.opret_konteringslinjer(bilagsid, linjer, "Forberedt af test")

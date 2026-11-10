@@ -24,14 +24,8 @@ class OESClient:
         password: str,
         headless: bool = False,
         playwright: Playwright | None = None,
-        hang_dump_sekunder: int | None = None,
     ):
-        """hang_dump_sekunder: se OESSession - skriver stacktrace til stderr, hvis
-        processen ikke har navigeret eller genindlæst en side i så mange sekunder
-        // see OESSession."""
-        self.session = OESSession(
-            base_url, username, password, headless, playwright, hang_dump_sekunder
-        )
+        self.session = OESSession(base_url, username, password, headless, playwright)
         self.bilag = BilagClient(self.session)
         self.brugere = BrugerClient(self.session)
         self.fakturaer = FakturaClient(self.session)

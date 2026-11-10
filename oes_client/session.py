@@ -4,7 +4,6 @@ OESSession ejer browseren, login og de fælles hjælpere (frames, ventetider, na
 fejlbeskeder), som områdeklienterne (bilag, brugere, ...) bruger.
 """
 
-import faulthandler
 import logging
 import re
 import time
@@ -30,6 +29,10 @@ from .selectors import BrugereSelectors as bu
 
 # interval for polling af ØS // polling interval for ØS
 POLL_MS = 100
+# hvor længe én frame må undersøges ad gangen // max time to check a single frame
+FRAME_TJEK_MS = 100
+# maks. tid for at køre JavaScript i en frame // max time to run JavaScript in a frame
+EVALUER_MS = 10_000
 
 INGEN_RESULTATER = "der passede til de indtastede søgekriterier"
 
@@ -47,17 +50,10 @@ class OESSession:
         password: str,
         headless: bool = False,
         playwright: Playwright | None = None,
-        hang_dump_sekunder: int | None = None,
     ):
         """playwright: en delt Playwright-instans. Er den None, starter sessionen sin
         egen og stopper den igen ved close(). En delt instans stoppes aldrig her.
         // a shared Playwright instance. If None, the session starts and stops its own.
-
-        hang_dump_sekunder: sker der ingen navigation eller genindlæsning i så mange
-        sekunder, skrives stacktrace for alle tråde til stderr (processen kører videre).
-        faulthandler har ét ur pr. proces, så med flere sessioner gælder det seneste kald.
-        // if no navigation or reload happens for this many seconds, all thread stacks
-        are written to stderr (the process keeps running). One timer per process.
         """
         self.base_url = base_url or "about:blank"
         self.username = username or ""
@@ -70,8 +66,6 @@ class OESSession:
         self._context: BrowserContext | None = None
         self._page: Page | None = None
         self._root = self._mod_core_root(self.base_url)
-        self._hang_dump_sekunder = hang_dump_sekunder
-        self._nulstil_hang_dump()
 
         # ryd op hvis login fejler, så Playwright ikke efterlades kørende
         # // clean up if login fails so Playwright is not left running
@@ -151,14 +145,7 @@ class OESSession:
             self.logger.error(f"[login] Failed: {e}")
             raise
 
-    def _nulstil_hang_dump(self) -> None:
-        """Genstarter uret for hang-dump // Restarts the hang dump timer."""
-        if self._hang_dump_sekunder:
-            faulthandler.dump_traceback_later(self._hang_dump_sekunder, repeat=True)
-
     def close(self) -> None:
-        if self._hang_dump_sekunder:
-            faulthandler.cancel_dump_traceback_later()
         if self._context is not None:
             self._context.close()
             self._context = None
@@ -184,19 +171,34 @@ class OESSession:
         frame_pattern: str | None = None,
         has_text: str | re.Pattern | None = None,
     ) -> Frame | None:
-        """Finder den frame der indeholder selector (ét gennemløb)."""
+        """Finder den frame der indeholder selector (ét gennemløb).
+
+        Hver frame undersøges i højst FRAME_TJEK_MS // each frame is checked for at
+        most FRAME_TJEK_MS.
+        """
         regex = re.compile(frame_pattern) if frame_pattern else None
         # nyeste frames først, da ØS kan have gamle faner liggende
         # // newest frames first, ØS may keep old tabs around
         for frame in reversed(self.page.frames):
             if regex and not regex.search(frame.url):
                 continue
-            try:
-                if frame.locator(selector, has_text=has_text).count() > 0:
-                    return frame
-            except Error:
-                continue  # frame blev fjernet undervejs // frame detached
+            if self.findes(frame.locator(selector, has_text=has_text)):
+                return frame
         return None
+
+    @staticmethod
+    def findes(locator: Locator, timeout: float = FRAME_TJEK_MS) -> bool:
+        """Om locator findes i DOM'en. Bruges i stedet for count(), der ingen timeout
+        har og kan hænge for evigt på en frame der aldrig bliver færdig med at loade.
+        // Whether locator exists in the DOM. Used instead of count(), which has no
+        timeout and can hang forever on a frame that never finishes loading.
+        """
+        try:
+            locator.first.wait_for(state="attached", timeout=timeout)
+            return True
+        except Error:
+            # ikke fundet, frame fjernet eller hænger // not found, detached or stuck
+            return False
 
     def vent_paa_en_af(
         self, muligheder: list[tuple[str, str | None]], timeout: float = 30_000
@@ -251,10 +253,8 @@ class OESSession:
         while time.monotonic() < deadline:
             try:
                 if not handle.evaluate("e => e.isConnected"):
-                    self._nulstil_hang_dump()
                     return
             except Error:
-                self._nulstil_hang_dump()
                 return  # framen er genindlæst // frame reloaded
             self.page.wait_for_timeout(POLL_MS)
         raise TimeoutError("ØS genindlæste ikke siden")
@@ -277,7 +277,6 @@ class OESSession:
 
     def naviger(self, link: str) -> None:
         """Går til startsiden, logger ind via SSO hvis nødvendigt, og derefter til link."""
-        self._nulstil_hang_dump()
         for forsoeg in range(3):
             try:
                 self.page.goto(f"{self._root}/#/", wait_until="domcontentloaded")
@@ -300,7 +299,16 @@ class OESSession:
             frame = self.frame_med(bs.FEJLLISTE, timeout=5_000)
         except TimeoutError:
             return []
-        tekster = frame.locator(bs.FEJLLISTE).first.locator("option").all_inner_texts()
+        try:
+            # ØS overskriver Array.from, så map-funktionen ignoreres - brug .map()
+            # // ØS overrides Array.from so its map function is ignored - use .map()
+            tekster = frame.locator(bs.FEJLLISTE).first.evaluate(
+                "s => Array.from(s.options).map(o => o.innerText)", timeout=EVALUER_MS
+            )
+        except Error:
+            # bruges mest til fejlbeskeder - må ikke skjule den oprindelige fejl
+            # // mostly used for error messages - must not hide the original error
+            return []
         return [t.strip() for t in tekster if t.strip()]
 
     def laes_resultattabel_side(self) -> list[list[str]]:
@@ -308,7 +316,8 @@ class OESSession:
         frame = self.frame_med(bs.RESULTAT_TABEL, timeout=10_000)
         return frame.locator(bs.RESULTAT_TABEL).first.evaluate(
             "t => Array.from(t.rows).map("
-            "r => Array.from(r.cells).map(c => c.innerText.trim()))"
+            "r => Array.from(r.cells).map(c => c.innerText.trim()))",
+            timeout=EVALUER_MS,
         )
 
     def hent_resultattabel(self) -> list[list[str]]:
@@ -325,7 +334,9 @@ class OESSession:
                 return []
             return self.laes_resultattabel_side()
 
-        antal_sider = frame.locator(f"{bs.SIDETALSVAELGER} option").count()
+        antal_sider = frame.locator(bs.SIDETALSVAELGER).first.evaluate(
+            "s => s.options.length", timeout=EVALUER_MS
+        )
         raekker = []
         for side in range(antal_sider):
             raekker += self.laes_resultattabel_side()

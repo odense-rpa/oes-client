@@ -16,7 +16,7 @@ from .bilag_xml import parse_konteringslinjer
 from .exceptions import BilagIkkeFundet, OESFejl
 from .selectors import BilagFrames as bf
 from .selectors import BilagSelectors as bs
-from .session import INGEN_RESULTATER, OESSession
+from .session import EVALUER_MS, INGEN_RESULTATER, OESSession
 
 __all__ = ["BilagClient", "BilagIkkeFundet", "OESFejl", "parse_konteringslinjer"]
 
@@ -86,14 +86,6 @@ class BilagClient:
     def _bilagsoversigt(self) -> Frame:
         self._session.naviger("bilag/oversigt")
         return self._session.frame_med(bs.BILAGSOVERSIGT_OVERSKRIFT, bf.BILAGSOVERSIGT)
-
-    def _laes_fejlbeskeder(self) -> list[str]:
-        try:
-            frame = self._session.frame_med(bs.FEJLLISTE, timeout=5_000)
-        except TimeoutError:
-            return []
-        tekster = frame.locator(bs.FEJLLISTE).first.locator("option").all_inner_texts()
-        return [t.strip() for t in tekster if t.strip()]
 
     def _find_bilag(self, bilagsid: str, rediger: bool = False, **status: bool) -> bool:
         """Fremsøger et bilag på bident og åbner det. Returnerer False hvis ikke fundet.
@@ -227,6 +219,18 @@ class BilagClient:
         else:
             felt.select_option(index=0)  # tom b-skat // blank b-skat
 
+    @staticmethod
+    def _slet_raekker(frame: Frame) -> list[int]:
+        """Rækkenumre med slet-link // row numbers that have a delete link."""
+        # ØS overskriver Array.from, så map-funktionen ignoreres - brug .map()
+        # // ØS overrides Array.from so its map function is ignored - use .map()
+        return frame.locator("body").evaluate(
+            "(b, sel) => Array.from(b.querySelectorAll(sel))"
+            ".map(a => +a.getAttribute('href').match(/_LKF_,(\\d+)/)[1])",
+            bs.SLET_LINJER,
+            timeout=EVALUER_MS,
+        )
+
     def _laes_tabel(self) -> list[list[str]]:
         return self._session.laes_resultattabel_side()
 
@@ -275,7 +279,9 @@ class BilagClient:
         # cpr-felterne ligger på en skjult fane, så værdien sættes direkte
         # // cpr fields are on a hidden tab, so set the value directly
         for selector in (bs.CPRNR_FRA, bs.CPRNR_TIL):
-            frame.locator(selector).evaluate("(e, v) => e.value = v", cpr)
+            frame.locator(selector).evaluate(
+                "(e, v) => e.value = v", cpr, timeout=EVALUER_MS
+            )
         frame.locator(bs.DATO_TYPE).select_option(label="Oprettet dato")
         if maks_beloeb is not None:
             frame.locator(bs.BELOEB_TIL).fill(_dansk_beloeb(maks_beloeb))
@@ -392,10 +398,7 @@ class BilagClient:
                         bs.BIDENT_LINJE.format(n=0), bf.EBILAG, 60_000
                     )
 
-        raekker = frame.eval_on_selector_all(
-                        bs.SLET_LINJER,
-                        "as => as.map(a => +a.getAttribute('href').match(/_LKF_,(\\d+)/)[1])",
-                    )
+        raekker = self._slet_raekker(frame)
 
         linjer_til_slet = len(raekker)
 
@@ -406,10 +409,7 @@ class BilagClient:
             frame = self._session.frame_med(
                 bs.BIDENT_LINJE.format(n=0), bf.EBILAG, 60_000
             )
-            raekker = frame.eval_on_selector_all(
-                bs.SLET_LINJER,
-                "as => as.map(a => +a.getAttribute('href').match(/_LKF_,(\\d+)/)[1])",
-            )
+            raekker = self._slet_raekker(frame)
             sidste = max(raekker, default=0)
             if sidste == 0:
                 break
@@ -499,7 +499,7 @@ class BilagClient:
         frame = self._aabn_til_redigering(bilagsid, behandles=True, bogfoeres=True)
         frame.locator(bs.BEMAERKNING).fill(bemaerkning)
         institution = frame.locator(bs.INSTITUTION)
-        if institution.count() > 0:
+        if self._session.findes(institution):
             institution.fill("")
         self._gem(bs.REDIGER_KNAP)
 
