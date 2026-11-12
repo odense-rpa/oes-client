@@ -109,6 +109,17 @@ Nyt område: opret `oes_client/<omraade>.py` med `class XClient: def __init__(se
 læg selectors i `selectors.py`, tilføj `self.<omraade> = XClient(self.session)` i `OESClient`, og
 skriv `tests/test_<omraade>.py` med `oes`-fixturen.
 
+## Ændringer i 0.7.1
+
+- `opret_konteringslinjer` kunne gemme linjer med tomme felter, fordi ØS' opslag
+  (fx på kontonummer og beløb) ikke var færdige, når rækken blev sendt. Venter nu på
+  opslagene og tjekker felterne før tilføj/Gem; afviger et felt stadig, rejses
+  `OESFejl` med linje og feltnavn.
+
+## Ændringer i 0.7.0
+
+- `OESClient`/`OESSession` kører nu headless som standard (`headless=True`).
+
 ## Ændringer i 0.6.6
 
 - `parse_konteringslinjer` vælger den rigtige moms på linjer med flere `TaxTotal`
