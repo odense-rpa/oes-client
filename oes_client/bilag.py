@@ -70,6 +70,25 @@ def _dansk_beloeb(beloeb: float) -> str:
     return f"{beloeb:.2f}".replace(".", ",")
 
 
+# feltnavne i fejlbeskeder // field names in error messages
+_FELTNAVNE = {
+    bs.BIDENT_LINJE: "Bident",
+    bs.CPR_LINJE: "Cpr",
+    bs.KONTONR_LINJE: "Kontonummer",
+    bs.POSTERINGSTEKST_LINJE: "Posteringstekst",
+    bs.BELOEB_LINJE: "Beløb",
+}
+# felter ØS kan omformatere (fx tusindtalsseparator) - sammenlignes på cifre
+# // fields ØS may reformat (e.g. thousands separator) - compared on digits
+_CIFFERFELTER = {bs.CPR_LINJE, bs.KONTONR_LINJE, bs.BELOEB_LINJE}
+
+
+def _samme_vaerdi(selector: str, faktisk: str, forventet: str) -> bool:
+    if selector in _CIFFERFELTER:
+        return re.sub(r"\D", "", faktisk) == re.sub(r"\D", "", forventet)
+    return faktisk.strip() == forventet.strip()
+
+
 class BilagClient:
     """Bilagshandlinger i ØS Indsigt // Invoice actions in ØS Indsigt.
 
@@ -218,6 +237,39 @@ class BilagClient:
             felt.select_option(label=b_skat)
         else:
             felt.select_option(index=0)  # tom b-skat // blank b-skat
+
+    def _bekraeft_raekke(self, frame: Frame, n: int, vaerdier: dict[str, str]) -> None:
+        """Sikrer at konteringslinje n har de udfyldte værdier, før den tilføjes/gemmes.
+
+        ØS slår felter op ved onchange (xhr) og skriver svaret tilbage i rækken. Feltet
+        mister fokus først ved klik på tilføj/Gem, så uden at vente kan rækken blive
+        sendt før opslaget er færdigt, og felter gemmes tomme.
+        // ØS looks fields up on change (xhr) and writes the answer back into the row.
+        The field only loses focus when tilføj/Gem is clicked, so without waiting the
+        row can be submitted before the lookup is done and fields are saved empty.
+        """
+        for _ in range(3):
+            # udløser onchange på det sidst udfyldte felt // fire onchange on the last field
+            frame.locator("body").evaluate(
+                "() => document.activeElement?.blur()", timeout=EVALUER_MS
+            )
+            self._session.vent_paa_opslag()
+            afvigende = [
+                selector
+                for selector, vaerdi in vaerdier.items()
+                if not _samme_vaerdi(
+                    selector,
+                    frame.locator(selector.format(n=n)).input_value(),
+                    vaerdi,
+                )
+            ]
+            if not afvigende:
+                return
+            for selector in afvigende:
+                frame.locator(selector.format(n=n)).fill(vaerdier[selector])
+        # kun feltnavne i fejlen, aldrig værdier // only field names, never values
+        navne = ", ".join(_FELTNAVNE[s] for s in afvigende)
+        raise OESFejl(f"Konteringslinje {n + 1}: {navne} blev ikke udfyldt i ØS")
 
     @staticmethod
     def _slet_raekker(frame: Frame) -> list[int]:
@@ -426,13 +478,15 @@ class BilagClient:
                 bs.BIDENT_LINJE.format(n=n), bf.EBILAG, 60_000
             )
             beloeb = float(linje["Beløb inkl moms"])
-            frame.locator(bs.BIDENT_LINJE.format(n=n)).fill(bilagsid)
-            frame.locator(bs.CPR_LINJE.format(n=n)).fill(linje["Cpr"])
-            frame.locator(bs.KONTONR_LINJE.format(n=n)).fill(linje["Kontonummer"])
-            frame.locator(bs.POSTERINGSTEKST_LINJE.format(n=n)).fill(
-                linje["Posteringstekst"][:39]
-            )
-            frame.locator(bs.BELOEB_LINJE.format(n=n)).fill(_dansk_beloeb(abs(beloeb)))
+            vaerdier = {
+                bs.BIDENT_LINJE: bilagsid,
+                bs.CPR_LINJE: linje["Cpr"],
+                bs.KONTONR_LINJE: linje["Kontonummer"],
+                bs.POSTERINGSTEKST_LINJE: linje["Posteringstekst"][:39],
+                bs.BELOEB_LINJE: _dansk_beloeb(abs(beloeb)),
+            }
+            for selector, vaerdi in vaerdier.items():
+                frame.locator(selector.format(n=n)).fill(vaerdi)
             frame.locator(bs.DEBET_KREDIT_LINJE.format(n=n)).select_option(
                 label="K" if beloeb < 0 else "D"
             )
@@ -440,6 +494,7 @@ class BilagClient:
                 self._saet_b_skat(
                     frame.locator(bs.B_SKAT_LINJE.format(n=n)), linje["B-skat"]
                 )
+            self._bekraeft_raekke(frame, n, vaerdier)
 
             if n < len(linjer) - 1:
                 # tilføj efter sidste række, så nye linjer kommer sidst. ØS validerer

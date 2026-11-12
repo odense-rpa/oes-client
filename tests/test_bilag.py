@@ -95,7 +95,6 @@ def _test_linjer_100(oes, bilagsid: str, kontonummer: str) -> list[dict]:
     ]
 
 
-@skriv
 def test_opret_konteringslinjer(oes):
     # bilaget skal have moms og en leverandør uden b-skat, og må ikke være varemodtaget.
     # Kan genbruges, da linjerne erstattes ved hver kørsel
@@ -112,8 +111,6 @@ def test_opret_konteringslinjer(oes):
 @skriv
 def test_varemodtag_bilag(oes, test_bilagsid):
     oes.bilag.varemodtag_bilag(test_bilagsid, "Behandlet af test")
-
-
 
 
 @skriv

@@ -66,6 +66,8 @@ class OESSession:
         self._context: BrowserContext | None = None
         self._page: Page | None = None
         self._root = self._mod_core_root(self.base_url)
+        # igangværende baggrundsopslag (xhr) fra ØS // ØS background lookups in flight
+        self._opslag: set = set()
 
         # ryd op hvis login fejler, så Playwright ikke efterlades kørende
         # // clean up if login fails so Playwright is not left running
@@ -75,6 +77,9 @@ class OESSession:
             self.close()
             raise
         self.page.on("dialog", self._haandter_dialog)
+        self.page.on("request", self._opslag_start)
+        self.page.on("requestfinished", self._opslag_slut)
+        self.page.on("requestfailed", self._opslag_slut)
 
     # ------------------------------ Browser og login // Browser and login -------------
 
@@ -258,6 +263,33 @@ class OESSession:
                 return  # framen er genindlæst // frame reloaded
             self.page.wait_for_timeout(POLL_MS)
         raise TimeoutError("ØS genindlæste ikke siden")
+
+    def _opslag_start(self, request) -> None:
+        if request.resource_type == "xhr":
+            self._opslag.add(request)
+
+    def _opslag_slut(self, request) -> None:
+        self._opslag.discard(request)
+
+    def vent_paa_opslag(self, timeout: float = 15_000, stille_ms: float = 300) -> None:
+        """Venter til ØS' baggrundsopslag (xhr) er færdige og der har været stille i
+        stille_ms. ØS slår fx kontonr og beløb op ved onchange og skriver svaret tilbage
+        i rækken - gemmes rækken før svaret er kommet, mangler felterne.
+        // Waits until ØS' background lookups (xhr) are done and quiet for stille_ms.
+        ØS looks up e.g. kontonr and beløb on change and writes the answer back into
+        the row - if the row is submitted before that, the fields are missing.
+        """
+        deadline = time.monotonic() + timeout / 1000
+        stille_siden = None
+        while time.monotonic() < deadline:
+            if self._opslag:
+                stille_siden = None
+            elif stille_siden is None:
+                stille_siden = time.monotonic()
+            elif time.monotonic() - stille_siden >= stille_ms / 1000:
+                return
+            self.page.wait_for_timeout(POLL_MS)
+        raise TimeoutError("ØS' baggrundsopslag blev ikke færdige")
 
     def vent_paa_loading(self, timeout: float = 60_000) -> None:
         self.page.wait_for_timeout(500)
